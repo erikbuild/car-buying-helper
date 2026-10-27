@@ -277,7 +277,7 @@ parseCalendarDate('2026-02-30') null; ('2026-13-01') null; ('') null; ('2026-10-
 ```
 
 - [ ] **Step 2:** Run `node --test test/unit/calendar.test.js`. Expected: FAIL.
-- [ ] **Step 3: Implement** the month-back rule from §7.3: clamp to the month's last day, and use the last day of each month when the first payment falls on a month's last day. Count days with `Date.UTC` integers, never local time.
+- [ ] **Step 3: Implement** the month-back rule from §7.3: clamp to the month's last day, and use the last day of each month when the first payment falls on a month's last day. Count whole UTC days, never local time. Set the year with `setUTCFullYear`, because `Date.UTC` reads years 0–99 as 1900–1999.
 - [ ] **Step 4:** Run `node --test test/unit/calendar.test.js`. Expected: PASS.
 - [ ] **Step 5: Commit.** "Count first-payment months and days".
 
