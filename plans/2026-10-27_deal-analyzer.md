@@ -116,7 +116,7 @@ playwright.config.js, package.json, .github/workflows/deploy.yml, README.md
 
 ## Execution order
 
-Each wave starts after the one before it is committed. Tasks in the same wave touch disjoint files, so they can run in parallel. Parallel implementers don't run git and run only their own tests; the orchestrator commits each task once its review passes.
+Each wave starts after the one before it is committed. Tasks in the same wave touch disjoint files, so they can run in parallel. Parallel implementers don't run git and run only their own tests; the orchestrator commits each task once its review passes. For Playwright runs in a parallel wave, pass `--output=test-results/task-<n>` so runs don't clear each other's results.
 
 1. Task 1
 2. Tasks 2, 3, 4, 5, 6, 7
@@ -166,7 +166,7 @@ Each wave starts after the one before it is committed. Tasks in the same wave to
     - `page renders in standards mode`: load `./`, then `expect(page).toHaveTitle('Car Buying Helper')` and `document.compatMode === 'CSS1Compat'`.
     - `manifest loads`: fetch `manifest.webmanifest` from the page and expect `name === 'Car Buying Helper'`.
   - `playwright.config.js`:
-    - `webServer: { command: 'node test/serve.js site 4173', url: 'http://localhost:4173/car-buying-helper/' }`, `use.baseURL` the same URL
+    - `webServer: { command: 'node test/serve.js site 4173', url: 'http://localhost:4173/car-buying-helper/', reuseExistingServer: true }`, so parallel runs share one server, and `use.baseURL` the same URL
     - project `webkit`: `devices['iPhone 15']`
     - project `chromium`: `{browserName:'chromium', viewport:{width:393,height:852}, isMobile:true, hasTouch:true, deviceScaleFactor:3}`
     - project `firefox`: `{browserName:'firefox', viewport:{width:393,height:852}}`
