@@ -289,7 +289,7 @@ parseCalendarDate('2026-02-30') null; ('2026-13-01') null; ('') null; ('2026-10-
   - `REGULAR` and `FORTY_FIVE_DAY`, both frozen.
   - `presentValue(paymentsCents, ratePercent, timing) → number`, in cents, unrounded.
   - `monthlyPayment(amountCents, ratePercent, n, timing = REGULAR) → integer`. It returns 0 when the amount is 0 or less, and `divideHalfUp(amount, n)` at 0%.
-  - `levelPayments(paymentCents, n, finalCents = null) → number[]`.
+  - `levelPayments(paymentCents, n, finalCents = null) → number[]`: n payments of paymentCents, then finalCents when it's given (n + 1 payments in all).
   - `solveRate(paymentsCents, amountCents, timing) → {percent} | {tooLow:true} | {tooHigh:true}`. It bisects in percent on [0, 100] until the bracket is under 1e-7 points, and returns the lower end (§7.5).
 
 - [ ] **Step 1: Write the failing tests** (`test/unit/loan.test.js`). AF is `3482514`:
@@ -578,7 +578,7 @@ down 4000000 → [docFee, extras, payingCash]; payingCash neutral "Paying cash: 
 - Consumes: Deal; `reference.regZ`; the loan module.
 - Produces:
   - `contractCards(deal, reference) → Card[]`. It returns `[]` unless a contract field other than the dates is entered, or when it's a cash deal.
-  - `contractSchedule(contract) → number[] | null`. It uses the implied final payment when the final payment is blank and the total doesn't match (§7.10).
+  - `contractSchedule(contract) → number[] | null`. It uses the implied final payment when the final payment is blank and the total doesn't match (§7.10). With a final payment, entered or implied, the schedule is `levelPayments(payment, count − 1, final)`; without one, `levelPayments(payment, count)`.
   - `contractAprResults(deal, reference) → [{timing, percent /*number|null*/}]`, for the allowed contract timings only.
   - `quoteComparisons(deal) → {apr, payment, term}`. Each is `{ran, failed, text}`.
 
@@ -587,7 +587,7 @@ down 4000000 → [docFee, extras, payingCash]; payingCash neutral "Paying cash: 
 ```js
 Example 2 contract → five green cards: "The amount financed matches your deal." | "The disclosure box adds up." | "Total of payments matches the schedule." | "The 0% checks out." | "The contract matches their quoted rate and term."
 Example 3 → red 13 "$3,185 more is financed than your deal adds up to."; 14–17 green; quoteComparisons.payment ceiling text includes $735.88
-Example 4 → all green; contractAprResults ≈ [5.900 (contract), 5.900 (regular)] (half up, 3 dp)
+Example 4 → all green; contractAprResults ≈ [5.800 (contract), 5.900 (regular)] (half up, 3 dp)
 Example 4 with total 4041386, finance charge 558872 → card 15 neutral "Total of payments isn't 60 × $671.65."; card 16 green
 Example 4 with total 4500000, finance charge 1017486 → card 16 red "The APR on the contract doesn't match its own numbers." with "They work out to 9.44%."
 12-month (2026-10-30 → 2026-11-14), payment 298835 × 12, APR 5.44 → red; APR 5.9 → green
