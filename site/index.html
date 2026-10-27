@@ -12,8 +12,249 @@
   <script type="module" src="app.js"></script>
 </head>
 <body>
+  <h1>Car Buying Helper</h1>
+
+  <!-- The summary strip, pinned to the top of the screen on every tab. The app writes each [data-strip] slot. -->
+  <section class="strip" aria-label="Summary">
+    <div>
+      <span class="strip-caption">Drive-away</span>
+      <span data-strip="drive-away">—</span>
+    </div>
+    <div>
+      <span class="strip-caption">Payment</span>
+      <span data-strip="should-be">should be —</span>
+      <span data-strip="theirs"></span>
+    </div>
+    <button type="button" data-strip="problems">—</button>
+  </section>
+
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="tab-price" aria-controls="panel-price" aria-selected="true">Price</button>
+    <button type="button" role="tab" id="tab-loan" aria-controls="panel-loan" aria-selected="false">Loan</button>
+    <button type="button" role="tab" id="tab-extras" aria-controls="panel-extras" aria-selected="false">Extras</button>
+    <button type="button" role="tab" id="tab-verdict" aria-controls="panel-verdict" aria-selected="false">Verdict</button>
+  </div>
+
+  <!-- Each field's input has the field's name as its id. Its [data-hint-for] and [data-error-for] lines describe it. -->
   <main>
-    <h1>Car Buying Helper</h1>
+    <section id="panel-price" role="tabpanel" aria-labelledby="tab-price">
+      <div class="field">
+        <label for="stickerTotal">Window sticker total</label>
+        <input id="stickerTotal" type="text" inputmode="decimal" autocomplete="off" aria-describedby="stickerTotal-error">
+        <p id="stickerTotal-error" data-error-for="stickerTotal"></p>
+      </div>
+      <div class="field">
+        <label for="targetPrice">Your target price</label>
+        <input id="targetPrice" type="text" inputmode="decimal" autocomplete="off" aria-describedby="targetPrice-error">
+        <p id="targetPrice-error" data-error-for="targetPrice"></p>
+      </div>
+      <div class="field">
+        <label for="salePrice">Their sale price</label>
+        <input id="salePrice" type="text" inputmode="decimal" autocomplete="off"
+          aria-describedby="salePrice-hint salePrice-error">
+        <!-- The app writes this hint from the state's rules. -->
+        <p class="hint" id="salePrice-hint" data-hint-for="salePrice"></p>
+        <p id="salePrice-error" data-error-for="salePrice"></p>
+      </div>
+      <div class="field">
+        <label for="rebates">Rebates applied</label>
+        <input id="rebates" type="text" inputmode="decimal" autocomplete="off" placeholder="0"
+          aria-describedby="rebates-hint rebates-error">
+        <p class="hint" id="rebates-hint" data-hint-for="rebates">Cash offered instead of the special rate goes on the Loan tab.</p>
+        <p id="rebates-error" data-error-for="rebates"></p>
+      </div>
+      <div class="field">
+        <label for="docFee">Doc fee</label>
+        <input id="docFee" type="text" inputmode="decimal" autocomplete="off" aria-describedby="docFee-error">
+        <p id="docFee-error" data-error-for="docFee"></p>
+      </div>
+      <div class="field">
+        <label for="titleRegistration">Title + registration</label>
+        <input id="titleRegistration" type="text" inputmode="decimal" autocomplete="off"
+          aria-describedby="titleRegistration-error">
+        <p id="titleRegistration-error" data-error-for="titleRegistration"></p>
+      </div>
+
+      <dl class="figures">
+        <div><dt>Discount</dt><dd data-calc="discount">—</dd></div>
+        <div><dt>Sales tax</dt><dd data-calc="tax-line">—</dd></div>
+        <div><dt>DMV fees</dt><dd data-calc="dmv">—</dd></div>
+        <div class="total"><dt>Drive-away total</dt><dd data-calc="drive-away">—</dd></div>
+      </dl>
+
+      <fieldset>
+        <legend>From their sheet (optional)</legend>
+        <div class="field">
+          <label for="theirTax">Their tax</label>
+          <input id="theirTax" type="text" inputmode="decimal" autocomplete="off"
+            aria-describedby="theirTax-check theirTax-error">
+          <p class="check" id="theirTax-check" data-calc="their-tax-check"></p>
+          <p id="theirTax-error" data-error-for="theirTax"></p>
+        </div>
+        <div class="field">
+          <label for="theirDriveAway">Their drive-away total</label>
+          <input id="theirDriveAway" type="text" inputmode="decimal" autocomplete="off"
+            aria-describedby="theirDriveAway-check theirDriveAway-error">
+          <p class="check" id="theirDriveAway-check" data-calc="their-drive-away-check"></p>
+          <p id="theirDriveAway-error" data-error-for="theirDriveAway"></p>
+        </div>
+      </fieldset>
+
+      <p class="link-line"><a href="https://github.com/erikbuild/car-buying-helper#before-you-go">Before you go: how to look up a fair price</a> (opens GitHub; needs a signal)</p>
+    </section>
+
+    <section id="panel-loan" role="tabpanel" aria-labelledby="tab-loan" hidden>
+      <div class="field">
+        <label for="downPayment">Down payment</label>
+        <div class="input-row">
+          <input id="downPayment" type="text" inputmode="decimal" autocomplete="off" placeholder="0"
+            aria-describedby="downPayment-error">
+          <button type="button" data-step-down="-50000">−$500</button>
+          <button type="button" data-step-down="50000">+$500</button>
+        </div>
+        <p id="downPayment-error" data-error-for="downPayment"></p>
+      </div>
+
+      <dl class="figures">
+        <div class="total"><dt>Amount financed</dt><dd data-calc="amount-financed">—</dd></div>
+      </dl>
+
+      <fieldset>
+        <legend>Their quote</legend>
+        <div class="field">
+          <label for="theirApr">Their rate (APR)</label>
+          <input id="theirApr" type="text" inputmode="decimal" autocomplete="off"
+            aria-describedby="theirApr-hint theirApr-error">
+          <p class="hint" id="theirApr-hint" data-hint-for="theirApr">Leave blank if they only quote a payment.</p>
+          <p id="theirApr-error" data-error-for="theirApr"></p>
+        </div>
+        <div class="field">
+          <label for="months">Months</label>
+          <input id="months" type="text" inputmode="numeric" autocomplete="off" aria-describedby="months-error">
+          <p id="months-error" data-error-for="months"></p>
+        </div>
+        <div class="field">
+          <label for="theirPayment">Their monthly payment</label>
+          <input id="theirPayment" type="text" inputmode="decimal" autocomplete="off"
+            aria-describedby="theirPayment-hint theirPayment-error">
+          <p class="hint" id="theirPayment-hint" data-hint-for="theirPayment">Ask for the exact payment, to the cent.</p>
+          <p id="theirPayment-error" data-error-for="theirPayment"></p>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Automaker's offer</legend>
+        <p class="link-line"><a href="https://www.mazdausa.com/shopping-tools/special-offers-and-incentives">Mazda offers (external link to www.MazdaUSA.com)</a></p>
+        <div class="field">
+          <label for="specialApr">Automaker's special rate</label>
+          <input id="specialApr" type="text" inputmode="decimal" autocomplete="off" aria-describedby="specialApr-error">
+          <p id="specialApr-error" data-error-for="specialApr"></p>
+        </div>
+        <div class="field">
+          <label for="specialCoversMonths">Covers loans up to</label>
+          <input id="specialCoversMonths" type="text" inputmode="numeric" autocomplete="off"
+            aria-describedby="specialCoversMonths-error">
+          <p id="specialCoversMonths-error" data-error-for="specialCoversMonths"></p>
+        </div>
+        <div class="field">
+          <label for="cashInstead">Cash instead of the special rate</label>
+          <input id="cashInstead" type="text" inputmode="decimal" autocomplete="off" aria-describedby="cashInstead-error">
+          <p id="cashInstead-error" data-error-for="cashInstead"></p>
+        </div>
+        <div class="switch-row">
+          <label for="takingCash">Taking the cash instead</label>
+          <input id="takingCash" type="checkbox" role="switch">
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="outsideApr">Your outside rate</label>
+        <input id="outsideApr" type="text" inputmode="decimal" autocomplete="off" aria-describedby="outsideApr-error">
+        <p id="outsideApr-error" data-error-for="outsideApr"></p>
+      </div>
+
+      <details id="contract">
+        <summary>At signing: the contract</summary>
+        <div class="field">
+          <label for="contractAmountFinanced">Amount financed</label>
+          <input id="contractAmountFinanced" type="text" inputmode="decimal" autocomplete="off"
+            aria-describedby="contractAmountFinanced-error">
+          <p id="contractAmountFinanced-error" data-error-for="contractAmountFinanced"></p>
+        </div>
+        <div class="field">
+          <label for="contractFinanceCharge">Finance charge</label>
+          <input id="contractFinanceCharge" type="text" inputmode="decimal" autocomplete="off"
+            aria-describedby="contractFinanceCharge-error">
+          <p id="contractFinanceCharge-error" data-error-for="contractFinanceCharge"></p>
+        </div>
+        <div class="field">
+          <label for="contractTotalOfPayments">Total of payments</label>
+          <input id="contractTotalOfPayments" type="text" inputmode="decimal" autocomplete="off"
+            aria-describedby="contractTotalOfPayments-error">
+          <p id="contractTotalOfPayments-error" data-error-for="contractTotalOfPayments"></p>
+        </div>
+        <div class="field">
+          <label for="contractApr">APR</label>
+          <input id="contractApr" type="text" inputmode="decimal" autocomplete="off" aria-describedby="contractApr-error">
+          <p id="contractApr-error" data-error-for="contractApr"></p>
+        </div>
+        <div class="field">
+          <label for="contractPayment">Monthly payment</label>
+          <input id="contractPayment" type="text" inputmode="decimal" autocomplete="off"
+            aria-describedby="contractPayment-error">
+          <p id="contractPayment-error" data-error-for="contractPayment"></p>
+        </div>
+        <div class="field">
+          <label for="contractPaymentCount">Number of payments</label>
+          <input id="contractPaymentCount" type="text" inputmode="numeric" autocomplete="off"
+            aria-describedby="contractPaymentCount-error">
+          <p id="contractPaymentCount-error" data-error-for="contractPaymentCount"></p>
+        </div>
+        <div class="field">
+          <label for="contractFinalPayment">Final payment</label>
+          <input id="contractFinalPayment" type="text" inputmode="decimal" autocomplete="off"
+            aria-describedby="contractFinalPayment-hint contractFinalPayment-error">
+          <p class="hint" id="contractFinalPayment-hint" data-hint-for="contractFinalPayment">Only if the last payment is different</p>
+          <p id="contractFinalPayment-error" data-error-for="contractFinalPayment"></p>
+        </div>
+        <div class="field">
+          <label for="contractDate">Contract date</label>
+          <input id="contractDate" type="date" aria-describedby="contractDates-hint contractDate-error">
+          <p id="contractDate-error" data-error-for="contractDate"></p>
+        </div>
+        <div class="field">
+          <label for="firstPaymentDate">First payment date</label>
+          <input id="firstPaymentDate" type="date" aria-describedby="contractDates-hint firstPaymentDate-error">
+          <p id="firstPaymentDate-error" data-error-for="firstPaymentDate"></p>
+        </div>
+        <!-- The app writes this hint while only one of the two dates is entered. -->
+        <p class="hint" id="contractDates-hint" data-hint-for="contractDates"></p>
+      </details>
+    </section>
+
+    <section id="panel-extras" role="tabpanel" aria-labelledby="tab-extras" hidden>
+      <h2 id="add-extra-heading">Add an extra</h2>
+      <div class="button-group" role="group" aria-labelledby="add-extra-heading">
+        <button type="button" data-add-extra="warranty">Extended warranty</button>
+        <button type="button" data-add-extra="gap">GAP</button>
+        <button type="button" data-add-extra="maintenance">Prepaid maintenance</button>
+        <button type="button" data-add-extra="tireWheel">Tire &amp; wheel</button>
+        <button type="button" data-add-extra="paintFabric">Paint / fabric</button>
+        <button type="button" data-add-extra="vinEtch">VIN etch</button>
+        <button type="button" data-add-extra="other">Other</button>
+      </div>
+      <!-- The app lists each extra here. -->
+      <ul data-extras></ul>
+    </section>
+
+    <section id="panel-verdict" role="tabpanel" aria-labelledby="tab-verdict" hidden>
+      <!-- The app writes the key numbers as <div><dt>…</dt><dd>…</dd></div> rows, and the cards as <article>s. -->
+      <dl class="figures" data-key-numbers></dl>
+      <div data-cards></div>
+      <h2>Signing checklist</h2>
+      <ol data-checklist></ol>
+      <button type="button" data-start-over>Start over</button>
+    </section>
   </main>
 </body>
 </html>

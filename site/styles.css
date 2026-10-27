@@ -1,2 +1,468 @@
 /* ABOUTME: Mobile-first styles for the Car Buying Helper page. */
 /* ABOUTME: Light and dark colors follow the system setting. */
+
+/* Colors. The dark set replaces the light one when the system is in dark mode. */
+:root {
+  color-scheme: light dark;
+  --page: #f2f3f5;
+  --surface: #ffffff;
+  --track: #e3e5e9;
+  --text: #17191c;
+  --muted: #555c68;
+  --line: #d5d9df;
+  --control-border: #868d99;
+  --accent: #14532d;
+  --on-accent: #ffffff;
+  --switch-on: var(--accent);
+  --severity-red: #b3261e;
+  --severity-amber: #8f5200;
+  --severity-green: #1c6b37;
+  --severity-neutral: var(--muted);
+  --error: var(--severity-red);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0f1012;
+    --surface: #1b1d21;
+    --track: #2a2d33;
+    --text: #eceef1;
+    --muted: #a9b0bb;
+    --line: #353a42;
+    --control-border: #7b828e;
+    --accent: #6bcf8b;
+    --on-accent: #0f1012;
+    --switch-on: #2f9e5a;
+    --severity-red: #ff8a80;
+    --severity-amber: #f2b552;
+    --severity-green: #6bcf8b;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Hidden panels and lines stay hidden even where a rule below sets their display. */
+[hidden] {
+  display: none !important;
+}
+
+html {
+  /* Room for the sticky strip when the browser scrolls a focused field into view. */
+  scroll-padding-top: 6rem;
+}
+
+/* One centered column, with room for the home indicator when the page runs full-screen. */
+body {
+  --gutter: 1rem;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 0 var(--gutter) calc(2rem + env(safe-area-inset-bottom));
+  background: var(--page);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+h1 {
+  margin: 0;
+  padding-block: 0.75rem 0.5rem;
+  font-size: 1.125rem;
+}
+
+h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.15em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Tap targets are at least 44px tall. Quick repeated taps, like on the ± buttons, aren't taken as a double-tap zoom. */
+button {
+  min-block-size: 2.75rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--control-border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+summary {
+  min-block-size: 2.75rem;
+  padding-block: 0.625rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Input text is at least 16px, so iOS doesn't zoom in on a field. */
+input {
+  font: inherit;
+  font-size: 1.125rem;
+}
+
+input:not([type="checkbox"]) {
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 2.75rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--control-border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A checkbox drawn as an on/off switch. Its whole 44px-tall box takes taps. The track and the knob are painted inside
+   its padding, and the knob moves to the end when the switch is on. */
+input[type="checkbox"][role="switch"] {
+  flex: none;
+  appearance: none;
+  inline-size: 4rem;
+  block-size: 2.75rem;
+  margin: 0;
+  padding: 0.375rem;
+  border: 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle closest-side, #ffffff calc(100% - 3px), transparent calc(100% - 2px))
+    left center / 2rem 2rem no-repeat content-box var(--control-border);
+  cursor: pointer;
+}
+
+input[type="checkbox"][role="switch"]:checked {
+  background-position: right center;
+  background-color: var(--switch-on);
+}
+
+/* The summary strip: drive-away, payment and problems, pinned to the top of the screen on every tab. */
+.strip {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline: calc(-1 * var(--gutter));
+  padding: 0.5rem var(--gutter);
+  border-block-end: 1px solid var(--line);
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.strip-caption {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Long amounts wrap inside their slot instead of widening the page. */
+[data-strip] {
+  display: block;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+[data-strip="drive-away"] {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+[data-strip="theirs"]:empty {
+  display: none;
+}
+
+[data-strip="problems"] {
+  padding-inline: 0.5rem;
+}
+
+/* The four tabs, drawn as one segmented control. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin-block: 0.75rem 1rem;
+  padding: 0.25rem;
+  border-radius: 0.75rem;
+  background: var(--track);
+}
+
+.tabs > [role="tab"] {
+  padding-inline: 0.25rem;
+  border-color: transparent;
+  background: transparent;
+}
+
+.tabs > [role="tab"][aria-selected="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A field: its label, its input, then its hint, check and error lines, which take no room while they're empty. */
+.field {
+  display: grid;
+  gap: 0.25rem;
+  margin-block-end: 1rem;
+}
+
+.field > label,
+.switch-row > label {
+  font-weight: 600;
+}
+
+.hint,
+.check,
+[data-error-for],
+[data-extra-error] {
+  font-size: 0.875rem;
+}
+
+.hint {
+  color: var(--muted);
+}
+
+[data-error-for],
+[data-extra-error] {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.hint:empty,
+.check:empty,
+[data-error-for]:empty,
+[data-extra-error]:empty {
+  display: none;
+}
+
+/* An input with buttons beside it, like the down payment's −$500 and +$500. */
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input-row > button {
+  flex: none;
+}
+
+/* A label with its switch at the end of the line. */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-end: 1rem;
+}
+
+fieldset {
+  min-inline-size: 0;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem 0;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+}
+
+legend {
+  padding-inline: 0.25rem;
+  font-weight: 700;
+}
+
+/* Label and value rows: the calculated lines, and the Verdict's key numbers. A long value wraps under its label. */
+.figures {
+  margin: 0 0 1rem;
+}
+
+.figures:empty {
+  display: none;
+}
+
+.figures > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: 1rem;
+  padding-block: 0.375rem;
+  border-block-end: 1px solid var(--line);
+}
+
+.figures dt {
+  color: var(--muted);
+}
+
+.figures dd {
+  margin: 0;
+  margin-inline-start: auto;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.figures > .total {
+  font-weight: 700;
+}
+
+.figures > .total > dt {
+  color: inherit;
+}
+
+/* A line holding a link, with the link tall enough to tap. */
+.link-line {
+  margin-block-end: 1rem;
+}
+
+.link-line > a {
+  display: inline-block;
+  min-block-size: 2.75rem;
+  padding-block: 0.6875rem;
+}
+
+#contract {
+  margin-block-end: 1rem;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+#contract > summary {
+  font-weight: 700;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Each extra on the Extras tab. */
+[data-extras] {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+[data-extras] > li {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+[data-extra-line] {
+  font-weight: 600;
+}
+
+.tip {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* The Verdict cards. A card's severity colors its edge and its word (Problem, Check, OK or Note), and the word sits
+   at the start of the headline's line: <span class="severity">Problem</span><h3>…</h3>. */
+[data-cards] {
+  display: grid;
+  gap: 0.5rem;
+}
+
+article[data-severity] {
+  --severity-color: var(--severity-neutral);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-inline-start: 0.375rem solid var(--severity-color);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+
+article[data-severity="red"] {
+  --severity-color: var(--severity-red);
+}
+
+article[data-severity="amber"] {
+  --severity-color: var(--severity-amber);
+}
+
+article[data-severity="green"] {
+  --severity-color: var(--severity-green);
+}
+
+article[data-severity="neutral"] {
+  --severity-color: var(--severity-neutral);
+}
+
+article[data-severity] > * {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+article[data-severity] > .severity {
+  flex: none;
+  color: var(--severity-color);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+article[data-severity] > .severity + h3 {
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+article[data-severity] h3 {
+  font-size: 1rem;
+}
+
+article[data-severity] > p {
+  margin-block-start: 0.25rem;
+}
+
+article[data-severity] summary {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.context {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+[data-checklist] {
+  margin: 0 0 1rem;
+  padding-inline-start: 1.5rem;
+  font-size: 0.875rem;
+}
+
+[data-checklist] > li + li {
+  margin-block-start: 0.375rem;
+}
+
+[data-start-over] {
+  inline-size: 100%;
+  color: var(--severity-red);
+}

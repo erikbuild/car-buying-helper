@@ -372,7 +372,7 @@ reference.kbb.text 'New cars averaged 3.4% under sticker nationally in Sept 2026
   - every input's computed font-size is ≥ 16px
   - every button, input, summary and tab is ≥ 44px tall
   - `emulateMedia({colorScheme:'dark'})` changes the body background color
-  - at 320×640 and at 1280×800, `scrollWidth <= innerWidth` (Review Focus 5)
+  - at 320×640 and at 1280×800, `scrollWidth <= document.documentElement.clientWidth` (Review Focus 5). Chromium's mobile emulation widens `innerWidth` to fit overflowing content, so `innerWidth` can't catch it there
   - both link addresses and texts
 - [ ] **Step 2:** Run `npx playwright test test/e2e/layout.spec.js`. Expected: FAIL.
 - [ ] **Step 3: Implement** the markup and the styles.
