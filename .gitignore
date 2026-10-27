@@ -1,1 +1,6 @@
 .superpowers/
+node_modules/
+test-results/
+playwright-report/
+# Keeps site/icons/ tracked when a global "Icon?" rule for macOS folder icons matches it on a case-insensitive disk.
+!site/icons/
