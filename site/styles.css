@@ -407,6 +407,12 @@ legend {
   background: var(--surface);
 }
 
+/* The item's gap spaces its parts, so its fields and switch rows drop the bottom margin they have elsewhere. A hint
+   then sits as close to its switch as the item's other parts sit to each other. */
+[data-extras] > li > :is(.field, .switch-row) {
+  margin-block-end: 0;
+}
+
 [data-extra-line] {
   font-weight: 600;
 }

@@ -1,9 +1,18 @@
-// ABOUTME: Connects the page to the deal checks: reads the fields and renders the strip, tabs and cards.
-// ABOUTME: Also runs the tabs, the down payment buttons and Start over, and registers the offline cache.
+// ABOUTME: Connects the page to the deal checks: reads the fields and extras, and renders the strip, tabs and cards.
+// ABOUTME: Also runs the tabs, the down payment and extras buttons and Start over, and registers the offline cache.
 import { verdictCards } from './lib/checks.js';
 import { deriveDeal } from './lib/deal.js';
-import { amountFinancedLine, keyNumbers, priceTabLines, summaryStrip } from './lib/display.js';
-import { FIELD_NAMES, editField, emptyForm, setTakingCash, stepDownPayment } from './lib/form.js';
+import { amountFinancedLine, extraLine, keyNumbers, priceTabLines, summaryStrip } from './lib/display.js';
+import {
+  FIELD_NAMES,
+  addExtra,
+  editExtra,
+  editField,
+  emptyForm,
+  removeExtra,
+  setTakingCash,
+  stepDownPayment,
+} from './lib/form.js';
 import { readInputs } from './lib/inputs.js';
 import { connecticut } from './rules/connecticut.js';
 import { reference } from './rules/reference.js';
@@ -20,7 +29,7 @@ const strip = document.querySelector('.strip');
 const tabs = [...document.querySelectorAll('[role="tab"]')];
 const takingCashSwitch = document.getElementById('takingCash');
 
-// The deal as typed: every field's text, the switch, and the down payment their quote is tied to.
+// The deal as typed: every field's text, the switch, the down payment their quote is tied to, and the extras.
 let form = emptyForm();
 
 // An element with these attributes, holding these children, which are elements or text.
@@ -37,16 +46,17 @@ function setText(selector, text) {
   document.querySelector(selector).textContent = text;
 }
 
-// Shows what the form works out to: the strip, the Price and Loan tabs' lines, each field's error, and the Verdict.
-// It never writes a field's text, so typing in a field is never interrupted.
+// Shows what the form works out to: the strip, the Price and Loan tabs' lines, each field's error, the extras and the
+// Verdict. It never writes the text of a field that's already on the page, so typing in a field is never interrupted.
 function render(form) {
-  const { inputs, errors, dateHint } = readInputs(form);
+  const { inputs, errors, extraErrors, dateHint } = readInputs(form);
   const deal = deriveDeal(inputs, rules);
   const cards = verdictCards(deal, rules, reference);
   renderStrip(summaryStrip(deal, cards));
   renderPriceTab(priceTabLines(deal, rules));
   setText('[data-calc="amount-financed"]', amountFinancedLine(deal));
   renderFieldMessages(errors, dateHint);
+  renderExtras(form.extras, deal, extraErrors);
   renderVerdict(keyNumbers(deal), cards);
 }
 
@@ -75,6 +85,72 @@ function renderFieldMessages(errors, dateHint) {
     setText(`[data-error-for="${name}"]`, errors[name] ?? '');
   }
   setText('[data-hint-for="contractDates"]', dateHint ?? '');
+}
+
+// The Extras tab's list, with an item for each extra in the form (SPEC §6.4), and each item's line and price error.
+// An extra that's new to the page gets an item at the end of the list, which is where the form adds extras, and the
+// item of an extra that's gone is removed. An item already on the page keeps its controls as they are.
+function renderExtras(extras, deal, extraErrors) {
+  const list = document.querySelector('[data-extras]');
+  const ids = new Set(extras.map(({ id }) => id));
+  for (const item of [...list.children]) {
+    if (!ids.has(item.dataset.extraId)) {
+      item.remove();
+    }
+  }
+  for (const extra of extras) {
+    const shown = [...list.children].find((item) => item.dataset.extraId === extra.id);
+    const item = shown ?? list.appendChild(extraItem(extra));
+    item.querySelector('[data-extra-line]').textContent = extraLine(deal, extra.id);
+    item.querySelector('[data-extra-error]').textContent = extraErrors[extra.id] ?? '';
+  }
+}
+
+// An extra's item: its name, its price with the price's error under it, the line saying what it costs, its type's
+// tip, its In the deal and Taxed switches, the hint on Taxed when its type has one, and Remove. The controls start
+// with the extra's values from the form.
+function extraItem(extra) {
+  const { id, type } = extra;
+  const { tip, taxedHint } = rules.extraTypes[type];
+  const errorId = `${id}-error`;
+  const taxedHintId = `${id}-taxed-hint`;
+  const textInput = { type: 'text', autocomplete: 'off' };
+  const switchInput = { type: 'checkbox', role: 'switch' };
+  const parts = [
+    element('div', { class: 'field' }, extraControl(extra, 'name', 'Name', textInput)),
+    element('div', { class: 'field' }, [
+      ...extraControl(extra, 'priceText', 'Price', { ...textInput, inputmode: 'decimal', 'aria-describedby': errorId }),
+      element('p', { id: errorId, 'data-extra-error': '' }, []),
+    ]),
+    element('p', { 'data-extra-line': '' }, []),
+  ];
+  if (tip !== null) {
+    parts.push(element('p', { class: 'tip' }, [tip]));
+  }
+  const taxedInput = taxedHint === null ? switchInput : { ...switchInput, 'aria-describedby': taxedHintId };
+  parts.push(
+    element('div', { class: 'switch-row' }, extraControl(extra, 'inDeal', 'In the deal', switchInput)),
+    element('div', { class: 'switch-row' }, extraControl(extra, 'taxed', 'Taxed', taxedInput)),
+  );
+  if (taxedHint !== null) {
+    parts.push(element('p', { class: 'hint', id: taxedHintId }, [taxedHint]));
+  }
+  const remove = element('button', { type: 'button', 'data-remove-extra': '' }, ['Remove']);
+  remove.addEventListener('click', () => update(removeExtra(form, id)));
+  parts.push(remove);
+  return element('li', { 'data-extra-id': id, 'data-extra-type': type }, parts);
+}
+
+// The label and input for one part of an extra (name, priceText, inDeal or taxed). The input starts with the extra's
+// value for that part: its text, or for a switch, whether it's on.
+function extraControl(extra, part, label, attributes) {
+  const input = element('input', { id: `${extra.id}-${part}`, 'data-extra-field': part, ...attributes }, []);
+  if (input.type === 'checkbox') {
+    input.checked = extra[part];
+  } else {
+    input.value = extra[part];
+  }
+  return [element('label', { for: input.id }, [label]), input];
 }
 
 // The Verdict tab's key numbers, as label and value rows, and its cards (SPEC §6.5).
@@ -122,12 +198,16 @@ function writeFields() {
   takingCashSwitch.checked = form.takingCash;
 }
 
-// Reads a field's text, or the switch, into the form.
+// Reads a field's text, the switch, or one of an extra's controls into the form.
 function readControl(control) {
   if (FIELD_NAMES.includes(control.id)) {
     update(editField(form, control.id, control.value));
   } else if (control === takingCashSwitch) {
     update(setTakingCash(form, control.checked));
+  } else if (control.matches('[data-extra-field]')) {
+    const { extraId } = control.closest('[data-extra-id]').dataset;
+    const value = control.type === 'checkbox' ? control.checked : control.value;
+    update(editExtra(form, extraId, { [control.dataset.extraField]: value }));
   }
 }
 
@@ -148,7 +228,7 @@ function showVerdict() {
   window.scrollTo(0, Math.floor(panelTop - strip.getBoundingClientRect().height));
 }
 
-// Text fields are read on every keystroke. Change events read the date pickers and the switch, which some browsers
+// Text fields are read on every keystroke. Change events read the date pickers and the switches, which some browsers
 // report only that way. A text field's change event comes when it loses focus, which can be after a down payment
 // button has moved the down payment, so reading it again would tie their quote to the moved one (SPEC §6.3).
 document.addEventListener('input', (event) => readControl(event.target));
@@ -170,6 +250,11 @@ for (const button of document.querySelectorAll('[data-step-down]')) {
     update(stepDownPayment(form, Number(button.dataset.stepDown)));
     writeField('downPayment');
   });
+}
+
+// Each add button adds an extra of its type (SPEC §6.4).
+for (const button of document.querySelectorAll('[data-add-extra]')) {
+  button.addEventListener('click', () => update(addExtra(form, button.dataset.addExtra, rules)));
 }
 
 document.querySelector('[data-start-over]').addEventListener('click', () => {

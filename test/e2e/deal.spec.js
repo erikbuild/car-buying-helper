@@ -10,50 +10,13 @@ import {
   EXAMPLE_1_VERDICTS,
   EXAMPLE_3_CONTRACT_TEXT,
 } from '../fixtures.js';
-import { test, expect } from './fixtures.js';
+import { test, expect, expectStrip, expectVerdicts, typeFields } from './fixtures.js';
 
 // The summary strip until their sale price is entered (§6.1). The theirs slot is empty.
 const EMPTY_STRIP = { driveAway: '—', shouldBe: 'should be —', theirs: '', problems: '—' };
 
 // The part of an iPhone 15's screen that the home-screen app shows above the home indicator (§2, §6.5).
 const IPHONE_SCREEN = { width: 393, height: 760 };
-
-// Shows a field's input: selects the tab that holds it, and opens the contract section when the field is in it.
-async function showField(page, name) {
-  const { panelId, inClosedSection } = await page.locator(`#${name}`).evaluate((input) => ({
-    panelId: input.closest('[role="tabpanel"]').id,
-    inClosedSection: input.closest('details:not([open])') !== null,
-  }));
-  await page.locator(`[role="tab"][aria-controls="${panelId}"]`).click();
-  if (inClosedSection) {
-    await page.locator(`details:has(#${name}) > summary`).click();
-  }
-}
-
-// Types each field's text into its input, in the order given.
-async function typeFields(page, texts) {
-  for (const [name, text] of Object.entries(texts)) {
-    await showField(page, name);
-    await page.locator(`#${name}`).fill(text);
-  }
-}
-
-// Checks the summary strip's four slots.
-async function expectStrip(page, { driveAway, shouldBe, theirs, problems }) {
-  await expect(page.locator('[data-strip="drive-away"]')).toHaveText(driveAway);
-  await expect(page.locator('[data-strip="should-be"]')).toHaveText(shouldBe);
-  await expect(page.locator('[data-strip="theirs"]')).toHaveText(theirs);
-  await expect(page.locator('[data-strip="problems"]')).toHaveText(problems);
-}
-
-// Opens the Verdict tab and checks its cards' severities and headlines, in order.
-async function expectVerdicts(page, verdicts) {
-  await page.getByRole('tab', { name: 'Verdict' }).click();
-  await expect(page.locator('[data-cards] > article > h3')).toHaveText(verdicts.map(([, headline]) => headline));
-  const severities = await page.locator('[data-cards] > article')
-    .evaluateAll((cards) => cards.map((card) => card.dataset.severity));
-  expect(severities).toEqual(verdicts.map(([severity]) => severity));
-}
 
 test('with no sale price, the Verdict shows only the start note, the checklist and Start over', async ({ page }) => {
   await page.goto('./');
