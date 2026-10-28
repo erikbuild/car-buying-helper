@@ -25,19 +25,21 @@ function filePathFor(root, basePath, requestUrl) {
   return path.join(root, isFolder ? `${relativePath}index.html` : relativePath);
 }
 
-export function startServer(rootDir, port, basePath = '/car-buying-helper/') {
+// Serves rootDir under basePath on port (0 for a free one). Every response carries the Cache-Control header given,
+// no-cache unless a test asks for another, such as the max-age=600 that GitHub Pages sends.
+export function startServer(rootDir, port, { basePath = '/car-buying-helper/', cacheControl = 'no-cache' } = {}) {
   const root = path.resolve(rootDir);
   const server = createServer(async (request, response) => {
     const filePath = filePathFor(root, basePath, request.url);
     const body = filePath === null ? null : await readFile(filePath).catch(() => null);
     if (body === null) {
-      response.writeHead(404, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' });
+      response.writeHead(404, { 'Content-Type': 'text/plain', 'Cache-Control': cacheControl });
       response.end('Not found');
       return;
     }
     response.writeHead(200, {
       'Content-Type': CONTENT_TYPES[path.extname(filePath)] ?? 'application/octet-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': cacheControl,
     });
     response.end(body);
   });

@@ -10,6 +10,10 @@ import { test as pageTest, expect } from './fixtures.js';
 
 const siteDir = fileURLToPath(new URL('../../site/', import.meta.url));
 
+// The Cache-Control header GitHub Pages sends with every file: the browser may answer a request for the file from its
+// own HTTP cache, without asking the server, for 10 minutes.
+const GITHUB_PAGES_CACHE_CONTROL = 'max-age=600';
+
 // Resolves once the offline cache's worker is active and controls the page.
 async function waitForOfflineCache(page) {
   await page.evaluate(async () => {
@@ -38,10 +42,10 @@ function stopServer(server) {
 }
 
 const test = pageTest.extend({
-  // The test's own server for the page: serve(dir) serves a folder in place of the one served before it and
-  // resolves to the page's address, and stop() stops serving. The first folder takes a free port and later
-  // ones reuse it, so every folder a test serves has the same origin while browsers running these tests at
-  // the same time each get their own port.
+  // The test's own server for the page: serve(dir, options) serves a folder, with startServer's options, in place
+  // of the one served before it and resolves to the page's address, and stop() stops serving. The first folder
+  // takes a free port and later ones reuse it, so every folder a test serves has the same origin while browsers
+  // running these tests at the same time each get their own port.
   siteServer: async ({}, use) => {
     let server = null;
     let port = 0;
@@ -51,9 +55,9 @@ const test = pageTest.extend({
         server = null;
       }
     };
-    const serve = async (dir) => {
+    const serve = async (dir, options) => {
       await stop();
-      server = await startServer(dir, port);
+      server = await startServer(dir, port, options);
       port = server.address().port;
       return `http://localhost:${port}/car-buying-helper/`;
     };
@@ -61,14 +65,15 @@ const test = pageTest.extend({
     await stop();
   },
   // Serves a copy of site/ as the named release, replacing the release served before it, and resolves to
-  // the page's address.
+  // the page's address. Each release comes with GitHub Pages' Cache-Control header, so the browser's HTTP cache
+  // still holds the files of the release before while the next one downloads, as on a phone.
   serveRelease: async ({ siteServer }, use) => {
     const dirs = [];
     await use(async (release) => {
       const dir = mkdtempSync(path.join(tmpdir(), `car-buying-helper-release-${release}-`));
       dirs.push(dir);
       copySiteAsRelease(release, dir);
-      return siteServer.serve(dir);
+      return siteServer.serve(dir, { cacheControl: GITHUB_PAGES_CACHE_CONTROL });
     });
     for (const dir of dirs) {
       rmSync(dir, { recursive: true, force: true });
@@ -109,6 +114,7 @@ test('the next release replaces the cached one', async ({ page, serveRelease }) 
   await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(['car-buying-helper-B']);
   await page.reload();
 
+  // Release B's worker downloaded every file fresh (§9). Taken from the browser's HTTP cache, they'd be release A's.
   await expect(page.locator('meta[name="test-release"]')).toHaveAttribute('content', 'B');
   const cachedPage = await page.evaluate(async () => (await caches.match('index.html')).text());
   expect(cachedPage).toContain('content="B"');

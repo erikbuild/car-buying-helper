@@ -140,10 +140,10 @@ Each wave starts after the one before it is committed. Tasks in the same wave to
 
 **Interfaces:**
 - Produces:
-  - `startServer(rootDir, port, basePath = '/car-buying-helper/') → Promise<http.Server>` (in `test/serve.js`)
+  - `startServer(rootDir, port, { basePath = '/car-buying-helper/', cacheControl = 'no-cache' } = {}) → Promise<http.Server>` (in `test/serve.js`)
     - also runs from the command line: `node test/serve.js site 4173`
     - content types: `.html` `text/html`, `.js` `text/javascript`, `.css` `text/css`, `.webmanifest` `application/manifest+json`, `.png` `image/png`
-    - sends `Cache-Control: no-cache`; 404 for unknown paths
+    - sends `Cache-Control: <cacheControl>` with every response: `no-cache` unless a test asks for another, as the update test in `offline.spec.js` asks for GitHub Pages' `max-age=600`; 404 for unknown paths
   - `test` and `expect` from `test/e2e/fixtures.js`. Each test fails if the page logs a console error or throws.
   - The e2e base URL `http://localhost:4173/car-buying-helper/`.
   - npm scripts:
