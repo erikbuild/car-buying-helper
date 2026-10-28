@@ -7,12 +7,7 @@ import { FORTY_FIVE_DAY, REGULAR } from '../../site/lib/loan.js';
 import { priceOf } from '../../site/lib/price.js';
 import { connecticut } from '../../site/rules/connecticut.js';
 import { assertWithin } from '../assertions.js';
-import { dealInputs, extra } from '../fixtures.js';
-
-// The deal for Example 1's inputs with `overrides` applied.
-function dealWith(overrides) {
-  return deriveDeal(dealInputs(overrides), connecticut);
-}
+import { dealInputs, dealWith, extra } from '../fixtures.js';
 
 test("deriveDeal works out Example 1's should-be payment, expected range, rate and doc fee cost", () => {
   const inputs = dealInputs();
