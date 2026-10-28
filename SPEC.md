@@ -72,15 +72,24 @@ Car Buying Helper is a single web page that Erik opens on his phone while sittin
 - The deploy stamps a release name into `offline.js` (§9, §14). A phone only picks up a new release when that file changes. The stamp is the only change made to `site/` at deploy, and the files in the repo still run as they are.
 - A first payment date more than 3 months after the contract date is an error, so a mis-set year can't widen card 1's accepted range (§6.3, §7.3).
 - The offline test must fail without the cache in every browser. It stops its own server before going offline and also opens an address the browser hasn't loaded (§13).
+- From the release review (2026-10-28):
+  - A payment too small to pay off the amount financed, even at 0%, leaves their rate unknown, so no check treats the loan as 0% (§7.5).
+  - Typing a down payment still ties the quote to it, and the Down payment field's hint says so (§6.3).
+  - Once both contract dates are a valid pair, their hint shows the first period between them (§6.3).
+  - Up to 3 problem cards fit one screenshot. With 4 or more, a second screenshot takes the rest (§6.5).
+  - A rate above the special or the outside rate, but within the 0.125-point tolerance, reads "Within 0.125 points of …" (cards 3 and 4).
+  - When a payment-only quote is out of date, cards 3 and 4 ask for a new quote instead of their rate.
+  - Card 1's first-payment clause says how to check it.
+  - Each extra's price has a hint that it's the full price, not per month. An extra counts only once its price is entered. With a worked-out rate, the Extras tab's lines read "at least" (§6.4).
 
 **Claude's calls (Erik can overrule any of these):**
 
 *The page*
 - The automaker's rate is typed in, not built in. Mazda's offers change monthly and Erik is buying right at the October/November changeover.
 - Labels are generic ("automaker's special rate"), not Mazda- or CX-50-specific.
-- The Verdict tab is designed to fit in one screenshot. No export button.
+- The Verdict tab is designed so its problems fit in one screenshot, up to 3 of them (§6.5). No export button.
 - A **Taking the cash instead** switch on the Loan tab. When the loan is too long for the special rate and the cash isn't in the deal, an amber card says Erik is getting neither.
-- When the dealer quotes only a payment, the page works out the rate from it ("at least R%") and uses that rate for the rate checks.
+- When the dealer quotes only a payment, the page works out the rate from it ("at least R%") and uses that rate for the rate checks. A payment that can't pay off the loan even at 0% gives no rate (§7.5).
 - Their quoted payment is tied to the down payment it was quoted at. Trying other down payments with the ± buttons marks the quote out of date instead of raising an alarm. Typing a down payment changes the deal, and the quote along with it, so the order Erik types fields in doesn't matter.
 - A card whose optional inputs are blank is left off. A card missing an input it needs becomes a note naming the field. There are exactly four severities: red, amber, green, neutral.
 - An optional **Final payment** field in the contract section, because many contracts end with a slightly different payment.
@@ -151,7 +160,7 @@ A link, "Before you go: how to look up a fair price", opens `https://github.com/
 
 | Field | Meaning | Default |
 |---|---|---|
-| Down payment | Cash Erik puts down, with −$500 and +$500 buttons. −$500 stops at $0. Blank counts as $0 | 0 |
+| Down payment | Cash Erik puts down, with −$500 and +$500 buttons. −$500 stops at $0. Blank counts as $0. Hint: "Typing a down payment ties their quote to it. Use −$500/+$500 to try one out." | 0 |
 | *(calculated)* Amount financed | §7.2 | — |
 | Their rate (APR) | The dealer's quoted APR. Hint: "Leave blank if they only quote a payment." | blank |
 | Months | The loan length, a whole number from 1 to 96 | blank |
@@ -175,20 +184,21 @@ Also on this tab:
 - A plain-text link to `https://www.mazdausa.com/shopping-tools/special-offers-and-incentives`, with the link text "Mazda offers (external link to www.MazdaUSA.com)". Mazda's terms allow only text links and require that marking. Mazda takes the ZIP code on that page.
 - A collapsed section, **"At signing: the contract"**. Erik copies these fields from the federal disclosure box and payment schedule on the retail installment contract: Amount financed, Finance charge, Total of payments, APR, Monthly payment, Number of payments, Final payment (hint: "Only if the last payment is different"), Contract date, and First payment date.
   - The two dates use date pickers, and they count only as a valid pair: both entered, with the first payment date after the contract date and no more than 3 months after it (§7.3). With only one entered, the fields show the hint "Enter both dates." With both entered in the wrong order, they show an inline error. With the first payment more than 3 months after the contract date, the first payment date shows the inline error "More than 3 months after the contract date. Check the dates." A mis-set year would otherwise widen card 1's accepted range enough to hide a padded payment. Anything other than a valid pair counts as blank.
+  - Once the dates are a valid pair, the hint gives the first period between them, from §7.3's m and d: "First payment 1 month and 15 days after the contract date." With m = 0 it reads "First payment 20 days after the contract date.", and with d = 0 "First payment 2 months after the contract date." A count of 1 takes the singular. A date wheel spun one month too far then shows next to the dates, before it can turn a card red.
   - The dates also set the first-payment timing for the payment check (§7.3). If the dealer offers a later first payment, Erik can enter both dates at the desk. The dates alone don't bring up the contract cards.
 
 ### 6.4 Extras tab
 
 Buttons add an item of each type: **Extended warranty · GAP · Prepaid maintenance · Tire & wheel · Paint / fabric · VIN etch · Other**. Each item has:
 - a name (editable, pre-filled with the type)
-- a price
+- a price, with the hint "The full price, not per month. If they quote $/mo, ask for the price."
 - **In the deal**, a toggle that is off by default
 - **Taxed**, a toggle whose default depends on the type (§8.1). GAP's has the hint "Taxed only if the lender requires GAP. Check the buyer's order."
 - remove
 
-Each item shows what it costs (§7.7), for example "Would add $61.43/mo, $3,685.80 over 60 months ($3,185.18 with tax)". An item in the deal says "Adds" instead of "Would add". When there's no loan to spread the cost over (a cash deal, months blank, or their rate unknown), the line is just "Would add $3,185.18 with tax".
+Each item shows what it costs (§7.7), for example "Would add $61.43/mo, $3,685.80 over 60 months ($3,185.18 with tax)". An item in the deal says "Adds" instead of "Would add". When there's no loan to spread the cost over (a cash deal, months blank, or their rate unknown), the line is just "Would add $3,185.18 with tax". With their rate worked out from their payment (§7.5), the amounts are lower bounds and read "at least". For example, with their APR blank and $850.00/mo quoted on Example 1's deal, the warranty in the deal reads "Adds at least $70.88/mo, at least $4,252.80 over 60 months ($3,185.18 with tax)".
 
-Items that are in the deal count toward the tax, the drive-away total and the amount financed. Items that aren't in the deal count toward nothing.
+Items that are in the deal count toward the tax, the drive-away total and the amount financed. Items that aren't in the deal count toward nothing. An item counts only once its price is entered: while the price is blank or unreadable, its line reads "Would add —" ("Adds —" in the deal), and it counts toward nothing, the Extras card included.
 
 One-line tips, shown on the item (text from the rules module):
 - **Extended warranty:** "Mazda's own plan can be bought later, until 3 years/36,000 miles, from any Mazda dealer."
@@ -213,7 +223,7 @@ Then the cards. Each card has:
 
 Cards are ordered red, amber, green, neutral. Within a severity they keep the order of the numbered list below. Only red and amber count as problems.
 
-**Screenshot goal:** in typical cases, the key numbers plus every red and amber card fit on one iPhone screen. Green cards may be compact.
+**Screenshot goal:** the key numbers plus up to 3 red and amber cards fit on one iPhone screen, from the top of the tab, where the strip's problem count takes you. With 4 or more problems, a second screenshot takes the rest. Green cards may be compact.
 
 **Which cards appear**
 - Until their sale price is entered, the tab shows one neutral note, "Enter their sale price on the Price tab to start.", followed by the signing checklist and Start over. It shows no key numbers and no other cards.
@@ -234,7 +244,7 @@ Cards are ordered red, amber, green, neutral. Within a severity they keep the or
 2. Their payment is less than L − $1, and their payment × months is less than the amount financed. Red: "$X/mo for N months can't pay off $AF." When their APR is blank, L is the 0% payment.
 3. Their APR is blank. Neutral: "$699.00/mo for 60 months works out to at least 7.44%." Sentence: "Ask what rate they're using. The rate checks use this rate until you enter theirs." When R shows as 0, the headline ends "works out to 0%."; when R is over 100%, it ends "works out to over 100%."
 4. Their payment is less than L − $1. Amber: "$X/mo is less than this deal should cost." Sentence: "At A% for N months it should be $L to $H. Check the months, the amount financed, and whether a rebate or the cash was applied."
-5. Their payment is more than H + $1. Red: "$X/mo doesn't add up." Sentence: "At A% for N months it should be $L to $H. Either the real rate is at least R%, or at least $E extra is in the loan, or the first payment is more than 45 days away."
+5. Their payment is more than H + $1. Red: "$X/mo doesn't add up." Sentence: "At A% for N months it should be $L to $H. Either the real rate is at least R%, or at least $E extra is in the loan, or the first payment is more than 45 days away (enter both dates under At signing to check)."
    - When R is over 100%, the rate clause reads "the real rate is over 100%".
    - The extra-amount clause is left out when E shows as $0 (§7.5).
    - The last clause appears only when their APR is above 0% and the contract dates aren't entered. At 0%, the first payment's timing doesn't change the payment.
@@ -244,15 +254,15 @@ Cards are ordered red, amber, green, neutral. Within a severity they keep the or
 **2. CT rate cap.** Shows only when red: their rate or the contract APR is over 15%. Red: "Over Connecticut's 15% legal cap for new-car loans."
 
 **3. Special rate.** Shows when the special rate is entered and Taking the cash instead is off. Needs months and "covers loans up to". While Taking the cash instead is on and cash instead is blank, card 3 shows as a neutral note instead: "Enter the cash offered instead of the special rate."
-1. Their rate is known and at most the special + 0.125. Green: "On the automaker's S% special."
+1. Their rate is known and at most the special + 0.125. Green: "On the automaker's S% special." When their rate is above the special, the headline is "Within 0.125 points of the S% special."
 2. Months are over "covers loans up to", and cash instead is entered. Amber: "You're not getting the S% special or the $C cash." Sentence: "The special covers loans up to M months, so a N-month loan should come with the $C cash. Ask for it, or turn on Taking the cash instead if it's already in the deal."
 3. Months are over "covers loans up to". Neutral: "The S% special covers loans up to M months." Sentence: "A N-month loan is on the lender's standard rate."
-4. Their rate is unknown. Neutral: "Enter their rate to check it against the S% special."
+4. Their rate is unknown. Neutral: "Enter their rate to check it against the S% special." When their APR is blank and their payment is out of date (§6.3), the note is "Ask for a new quote at $6,000 down to check their rate against the S% special."
 5. Otherwise, red: "Should be the automaker's S% special." Sentence: "Their A% costs you $D more over N months." With a worked-out rate, the sentence is "Their rate of at least A% costs you at least $D more over N months." When cash instead is entered, it adds "Or ask for the $C cash instead." $D is the rate cost from §7.8.
 
-**4. Outside rate.** Shows unless the special rate applies (§7.6), or the special rate is entered and card 3 is still asking for months or "covers loans up to". Needs their rate, your outside rate and months. Its needs-input note adds the Experian context line: "Buyers with 781+ scores averaged 4.41% on new-car loans in Q2 2026 (Experian; includes automaker specials)."
+**4. Outside rate.** Shows unless the special rate applies (§7.6), or the special rate is entered and card 3 is still asking for months or "covers loans up to". Needs their rate, your outside rate and months. Its needs-input note adds the Experian context line: "Buyers with 781+ scores averaged 4.41% on new-car loans in Q2 2026 (Experian; includes automaker specials)." When their APR is blank and their payment is out of date (§6.3), the note asks for a new quote in place of their rate: "Ask for a new quote at $6,000 down to compare their loan with your own financing." Any other blank inputs come first: "Enter your outside rate and ask for a new quote at $6,000 down to compare their loan with your own financing."
 1. Their rate is more than the outside rate + 0.125. Amber: "D points over your outside rate." Sentence: "That costs $C over N months. Ask them to match O%, or use your own financing." It also shows the Experian context line. With a worked-out rate, the headline is "At least D points over your outside rate." and the sentence starts "That costs at least $C over N months."
-2. Otherwise, green: "At or under your O% outside rate."
+2. Otherwise, green: "At or under your O% outside rate." When their rate is above the outside rate, the headline is "Within 0.125 points of your O% outside rate."
 
 **5. Special rate or cash.** Shows when the special rate, "covers loans up to", cash instead and your outside rate are all entered. Needs months. The math is in §7.9.
 1. The cash covers the rest of the loan (AF_B ≤ 0). Neutral: "The $C cash covers the rest of the loan." Sentence: "Take the cash."
@@ -294,7 +304,7 @@ Outcomes 2 and 3 add: "With tax it costs $T. CT Mazda dealers charge about $600�
 2. Otherwise, green: "Title and registration are within CT's fees."
 
 **12. Extras.** Always shows.
-1. Any extra is in the deal. Amber: "Extras in the deal: $X." Sentence: "+$Y/mo, $Z over N months. All optional." When there's no loan to spread it over (§6.4), the sentence is "That's with tax. All optional."
+1. Any extra is in the deal. Amber: "Extras in the deal: $X." Sentence: "+$Y/mo, $Z over N months. All optional." With a worked-out rate, it reads "At least +$Y/mo, at least $Z over N months. All optional." When there's no loan to spread it over (§6.4), the sentence is "That's with tax. All optional." Only extras whose price is entered count (§6.4).
 2. Otherwise, green: "No extras in the deal."
 
 **Contract cards (13–17)** show once any contract field other than the two dates is entered.
@@ -419,13 +429,14 @@ This can't flip between two answers. With the estimate, a cash deal always comes
 This section is used when their payment is above the accepted range, and when their APR is blank. Each figure is computed for every desk timing (§7.3), and the smallest result is used, so it is never overstated. That's why these figures are worded "at least".
 - **Solving for a rate** (here, in §7.9 and in §7.10): bisect the rate, in percent, on [0%, 100%] until the bracket is narrower than 1e-7 percentage points, and use the lower end.
 - **Rate from their payment (R):** the rate at which PV(their payment for each of the months, R, timing) = AF.
-  - If their payment × months ≤ AF, R = 0%.
+  - If their payment is less than the 0% payment − $1, it can't pay off AF at any rate (card 1, outcome 2), and there is no R.
+  - Otherwise, if their payment × months ≤ AF, R = 0%. A payment within $1 below the 0% payment gets here.
   - If PV at 100% is still more than AF, R is "over 100%". It counts as 100% in comparisons and in the figures computed from it.
   - It reads "at least R%". When R shows as 0 after rounding down, it reads "0%". When R is over 100%, it reads "over 100%", without "at least". In the key numbers, ", from their payment" follows.
 - **Hidden amount (E):** PV(their payment for each of the months, their APR, timing) − AF. It's shown rounded down to $10 when it's $10 or more, and rounded down to the dollar otherwise.
 - **Their rate** is what cards 2–4 and 17 and the Extras figures use:
   - their APR, when it's entered;
-  - otherwise R, provided their payment is entered and current (§6.3) and months is entered;
+  - otherwise R, provided their payment is entered and current (§6.3), months is entered, and there is an R;
   - otherwise, their rate is unknown.
 
 In Example 1, R is the smaller of 7.571% (regular) and 7.440% (45 days), so it reads "at least 7.44%". E is the smaller of $1,418.13 and $1,329.25, so it reads "at least $1,320".
@@ -497,7 +508,7 @@ Results:
 - Doc fee: $699 plus $44.39 tax = $743.39.
 
 Cards, in order:
-1. Red, Payment adds up: "$699.00/mo doesn't add up." Sentence: "At 5.9% for 60 months it should be $671.65 to $673.30. Either the real rate is at least 7.44%, or at least $1,320 extra is in the loan, or the first payment is more than 45 days away."
+1. Red, Payment adds up: "$699.00/mo doesn't add up." Sentence: "At 5.9% for 60 months it should be $671.65 to $673.30. Either the real rate is at least 7.44%, or at least $1,320 extra is in the loan, or the first payment is more than 45 days away (enter both dates under At signing to check)."
 2. Amber, Special rate: "You're not getting the 0% special or the $1,000 cash."
 3. Amber, Outside rate: "0.4 points over your outside rate." Sentence: "That costs $387 over 60 months. …"
 4. Green, Special rate or cash: "The 0% special beats the $1,000 cash by about $1,790." Sentence ends: "Cash only wins if you can borrow below 1.9%."
@@ -701,6 +712,7 @@ Card code fills that text in from the values and has no Connecticut text of its 
     - amounts: $0–$500,000, with up to 2 decimals
   - A value that is negative, unreadable or outside these limits shows an inline error and counts as blank.
   - A blank or invalid down payment or rebates counts as $0. The ± buttons treat it as $0, and the quote is tied to that value.
+  - An extra's blank or invalid price counts as blank, so the extra counts toward nothing (§6.4).
 - **Persistence:**
   - The deal is saved to `localStorage` on every change and restored on load. What's saved:
     - a format version
@@ -724,7 +736,7 @@ Card code fills that text in from the values and has no Connecticut text of its 
 - **Missing inputs:** §6.5 says which cards are left off and which ask for an input. The strip shows "—" for anything it can't compute.
 - **No sale price yet:** the Verdict tab shows only "Enter their sale price on the Price tab to start.", the signing checklist and Start over.
 - **Cash deal (AF ≤ 0):** one Paying cash note replaces the loan, rate and contract cards.
-- **The payment can't pay off the loan, even at 0%:** red Payment card (card 1, outcome 2).
+- **The payment can't pay off the loan, even at 0%:** red Payment card (card 1, outcome 2). With their APR blank, their rate is unknown (§7.5).
 - **Out-of-date quote:** §6.3.
 - **Solvers:** every solve brackets [0%, 100%]. No solution produces wording (§7.5, §7.9, §7.10), never a thrown error.
 - **Display rounding:** §7.0.
@@ -766,7 +778,8 @@ The README must include:
    - If they quote only a payment, leave their rate blank; the page works out the rate.
    - Turn on **Taking the cash instead** if the deal takes the cash.
    - If they offer a later first payment, enter both dates under "At signing" before checking the payment.
-   - The ± buttons try out other down payments. At a new down payment, ask for a new quote before relying on the payment check.
+   - The ± buttons try out other down payments. At a new down payment, ask for a new quote before relying on the payment check. Typing a down payment ties their quote to it, so use the ± buttons to try one out.
+   - If they quote an extra per month, ask for its full price. The Extras tab takes the price.
 4. Development: how to run the tests and serve the page locally.
 5. A disclaimer: not financial or legal advice; Connecticut rules are as of the dates shown.
 
@@ -827,19 +840,24 @@ package.json              development only (@playwright/test)
     - a 6-month loan of $34,825.14 at 5.9%: L $5,904.48, H $5,918.99; their $5,920.49 is red, with E $8.80 shown as "at least $8 extra"
     - the out-of-date quote, including the entry order: their payment typed before the down payment, then $5,000 typed into the down payment, is current; a ± press makes it out of date, and pressing back makes it current again
     - the rate worked out from a payment, including a 0% payment-only quote ($967.37 × 36 works out to 0.000326%, so the headline ends "works out to 0%.")
+    - a payment-only quote that can't pay off the loan: Example 1 with their APR blank and $560.00/mo leaves their rate unknown, so card 1 is red "can't pay off", card 3 is amber "You're not getting the 0% special or the $1,000 cash." and card 4 asks for their rate. At 0% for 36 months, $966.37, exactly $1 under the 0% payment of $967.37, still works out to 0%, and $966.36 leaves their rate unknown
     - card 3: their rate at or under the special, on a loan longer than it covers, is green
+    - cards 3 and 4 within the tolerance: their 0.125% against the 0% special at 36 months reads "Within 0.125 points of the 0% special."; their 5.625% against an outside 5.5% reads "Within 0.125 points of your 5.5% outside rate.", and 5.5% reads "At or under your 5.5% outside rate."
+    - cards 3 and 4 with a payment-only quote out of date ask for a new quote at the down payment now entered
     - card 4: their 6.5% against an outside 5.5% reads "1 point over your outside rate."
     - card 5 near the lien-fee line: Example 1's deal with $38,820.14 down has AF₀ $1,005.00 and AF_B −$5.00, so card 5 says the cash covers the rest
     - card 16 with the final payment blank: Example 4's contract with a total of payments of $40,413.86 (finance charge $5,588.72) implies a final payment of $786.51 and passes (card 15 is the neutral prompt). With $45,000 and a $10,174.86 finance charge, it implies $5,372.65, works out to 9.441% (45-day) or 9.595% (regular), and is red
     - card 17 with a payment-only quote (Example 6): a contract of 60 × $699 on $34,825.14 disclosing 7.57%, the regular-timing rate, is green, "The contract matches their quoted payment and term." The comparison-2 line is $700.00
     - card 17 with only comparison 3 possible is the neutral note, not green
-  - **Item costs:** warranty +$61.43/mo, GAP +$17.26/mo (§7.11).
+  - **Item costs:** warranty +$61.43/mo, GAP +$17.26/mo (§7.11). An extra with a blank or unreadable price reads "Would add —" and counts toward nothing. With a worked-out rate, the lines read "at least" (§6.4's example).
+  - **Contract dates' hint:** one date gives "Enter both dates."; each valid pair in §7.3 gives its first period, such as "First payment 1 month and 15 days after the contract date." for 2026-10-30 → 2026-12-14; a pair that isn't valid gives no hint.
 - **Integration** (Node): build each §7.11 example from raw inputs. Assert the exact derived numbers, the exact card list (severity, headline and order), and the strip text.
 - **End-to-end** (Playwright with WebKit, Chromium and Firefox, at an iPhone viewport, served by a small local static server):
   - enter Example 1 through the UI, then assert the strip and the Verdict cards
   - change the down payment with the ± buttons and see the totals update; −$500 stops at $0
   - the ± buttons mark the quote out of date, and pressing back or typing a down payment clears that; typing their payment before the down payment still gives a current quote
-  - add, toggle and remove extras, and check each item's line and tip
+  - add, toggle and remove extras, and check each item's line, tip and price hint
+  - the Down payment hint, and the contract dates' hint once both dates are entered
   - enter Example 3 in the contract section and see the red amount-financed card
   - turn on Taking the cash instead (Example 5)
   - bad and out-of-range input shows an inline error and counts as blank

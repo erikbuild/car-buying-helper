@@ -55,7 +55,7 @@ Every task uses these names and fields exactly as written.
   titleRegistrationCents, theirTaxCents, theirDriveAwayCents,
   downCents /*0 when blank*/, quoteDownCents, theirAprMilli, months, theirPaymentCents,
   specialAprMilli, specialCoversMonths, cashInsteadCents, takingCash, outsideAprMilli,
-  extras: [{ id, type, name, priceCents /*0 when blank*/, inDeal, taxed }],
+  extras: [{ id, type, name, priceCents /*null when blank or unreadable*/, inDeal, taxed }],
   contract: { amountFinancedCents, financeChargeCents, totalOfPaymentsCents, aprMilli,
               paymentCents, paymentCount, finalPaymentCents, timing /*Timing|null*/ } }
 
@@ -128,6 +128,7 @@ Each wave starts after the one before it is committed. Tasks in the same wave to
 7. Task 14
 8. Tasks 15 → 16 → 17 in sequence, with Task 18 alongside
 9. Task 19
+10. Tasks 20 → 21 → 22, the release review decisions, in `plans/2026-10-28_review-decisions.md`
 
 ---
 
