@@ -70,6 +70,8 @@ Car Buying Helper is a single web page that Erik opens on his phone while sittin
 - Everything ships in the first version, before the visit. There is no staged release ("we can trivially get this done before then").
 - The three JSON files in §4 are exempt from the ABOUTME rule.
 - The deploy stamps a release name into `offline.js` (§9, §14). A phone only picks up a new release when that file changes. The stamp is the only change made to `site/` at deploy, and the files in the repo still run as they are.
+- A first payment date more than 3 months after the contract date is an error, so a mis-set year can't widen card 1's accepted range (§6.3, §7.3).
+- The offline test must fail without the cache in every browser. It stops its own server before going offline and also opens an address the browser hasn't loaded (§13).
 
 **Claude's calls (Erik can overrule any of these):**
 
@@ -172,7 +174,7 @@ Pressing the buttons back, typing a down payment, or typing their payment again 
 Also on this tab:
 - A plain-text link to `https://www.mazdausa.com/shopping-tools/special-offers-and-incentives`, with the link text "Mazda offers (external link to www.MazdaUSA.com)". Mazda's terms allow only text links and require that marking. Mazda takes the ZIP code on that page.
 - A collapsed section, **"At signing: the contract"**. Erik copies these fields from the federal disclosure box and payment schedule on the retail installment contract: Amount financed, Finance charge, Total of payments, APR, Monthly payment, Number of payments, Final payment (hint: "Only if the last payment is different"), Contract date, and First payment date.
-  - The two dates use date pickers, and they count only as a valid pair: both entered, with the first payment date after the contract date. With only one entered, the fields show the hint "Enter both dates." With both entered in the wrong order, they show an inline error. Anything other than a valid pair counts as blank.
+  - The two dates use date pickers, and they count only as a valid pair: both entered, with the first payment date after the contract date and no more than 3 months after it (§7.3). With only one entered, the fields show the hint "Enter both dates." With both entered in the wrong order, they show an inline error. With the first payment more than 3 months after the contract date, the first payment date shows the inline error "More than 3 months after the contract date. Check the dates." A mis-set year would otherwise widen card 1's accepted range enough to hide a padded payment. Anything other than a valid pair counts as blank.
   - The dates also set the first-payment timing for the payment check (§7.3). If the dealer offers a later first payment, Erik can enter both dates at the desk. The dates alone don't bring up the contract cards.
 
 ### 6.4 Extras tab
@@ -383,6 +385,7 @@ This can't flip between two answers. With the estimate, a cash deal always comes
   - The date *k* months back has the first payment's day of the month, *k* months earlier. If that month is too short, use its last day. If the first payment falls on the last day of its month, use the last day of each earlier month (Appendix J (b)(3)(iv)).
   - *m* is the largest *k* (0 or more) whose date is on or after the contract date. *d* is the number of days from the contract date to that date.
   - *m* is 0 when the first payment is less than a month away.
+  - The dates are a valid pair only when the first payment is no more than 3 months after the contract date: *m* < 3, or *m* = 3 and *d* = 0 (§6.3). 2026-10-30 → 2027-01-30 (m = 3, d = 0) is valid; 2026-10-30 → 2027-01-31 (m = 3, d = 1) is more than 3 months.
   - Examples (contract date → first payment date):
     - 2026-10-30 → 2026-12-14: m = 1, d = 15
     - 2026-10-30 → 2026-11-19: m = 0, d = 20
@@ -842,7 +845,7 @@ package.json              development only (@playwright/test)
   - bad and out-of-range input shows an inline error and counts as blank
   - reload and confirm the fields, extras and switch persist
   - corrupt saved data and blocked storage: the page still works and starts fresh. Storage is blocked with a real browser setting, such as Firefox's `dom.storage.enabled = false`, not by replacing `localStorage` in page code.
-  - go offline, reload, and confirm the page still works, in all three browsers. Prove this in each browser first. If one can't run it, stop and decide with Erik, since dropping a test needs his approval.
+  - load the page from the test's own server, stop that server, go offline, reload, and confirm the page still works; then open an address the browser hasn't loaded (the page with a query string, which the cache answers) and confirm it works too, in all three browsers. The test must fail without the cache in every browser: Firefox reloads a page it has seen from its own HTTP cache, and Playwright's offline switch doesn't cover the cache's own requests in Firefox, so a plain offline reload proves nothing there. Prove the failure without the cache in each browser first. If one can't run it, stop and decide with Erik, since dropping a test needs his approval.
   - the update path: serve release A and load it, serve release B, load twice, and confirm B is showing with no files left from A
   - every request goes to the page's own origin
   - the keypad attributes (`inputmode="decimal"` and `"numeric"`, §9), input text of at least 16px, and tap targets of at least 44px

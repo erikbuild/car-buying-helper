@@ -201,11 +201,13 @@ Each wave starts after the one before it is committed. Tasks in the same wave to
   - `release placeholder appears once`.
 - [ ] **Step 2: Write the failing e2e tests.** In `test/e2e/offline.spec.js`:
   - `opens offline after one online visit`:
-    - load the page, then wait for `navigator.serviceWorker.ready` and a controller
-    - `context.setOffline(true)` and reload
+    - serve `site/` from the test's own server (`startServer` on a free port), load the page, then wait for `navigator.serviceWorker.ready` and a controller
+    - stop that server, `context.setOffline(true)` and reload
     - the "Car Buying Helper" heading is visible
+    - open `./?source=home-screen`, an address the browser hasn't loaded, and the heading is visible again
+    - without the worker this test fails in all three browsers. Firefox reloads a page it has seen from its own HTTP cache, and Playwright's offline switch doesn't cover the worker's own requests in Firefox, so the server must be stopped and the address must be one Firefox hasn't loaded.
   - `the next release replaces the cached one`:
-    - copy `site/` into two temp dirs. In each, set RELEASE to `'A'` or `'B'` and add `<meta name="test-release" content="A">` (or `B`) to `index.html`.
+    - copy `site/` into two temp dirs. In each, set RELEASE to `'A'` or `'B'` with `stampRelease` from `tools/stamp-release.js` (Task 18) and add `<meta name="test-release" content="A">` (or `B`) to `index.html`.
     - serve A on a free port with `startServer`, load the page, and wait for the controller. (A fixed port can't work: the three browser projects run this test at the same time.)
     - stop A and start B on A's port, so both share one origin. Reload: the page still shows A, because the worker answers from its cache first. Wait until `caches.keys()` equals `['car-buying-helper-B']`. Reload again.
     - the meta content is `B`, and the cached `index.html` text contains `content="B"`
@@ -434,6 +436,7 @@ saleCents null → {hasSale:false, …all null}
   - Months, specialCoversMonths and contractPaymentCount are whole numbers from 1 to 96.
   - With exactly one date entered, `dateHint` is 'Enter both dates.'
   - With both dates in the wrong order: `errors.firstPaymentDate = 'The first payment date must be after the contract date.'`
+  - With the first payment more than 3 months after the contract date (§7.3: m > 3, or m = 3 and d > 0): `errors.firstPaymentDate = 'More than 3 months after the contract date. Check the dates.'`, and `contract.timing` is null.
 
 - [ ] **Step 1: Write the failing tests** (`test/unit/form.test.js`, `test/unit/inputs.test.js`):
 
@@ -449,6 +452,7 @@ readInputs on a form built by editField, in this order, from Example 1's fields 
 salePrice 'abc' → errors.salePrice 'Enter a number, like 36,500.', inputs.saleCents null
 downPayment '' → downCents 0; rebates 'x' → rebatesCents 0 with errors.rebates set
 contractDate only → dateHint 'Enter both dates.', contract.timing null; '2026-10-30'+'2026-12-14' → timing {m:1,d:15}
+'2026-10-30'+'2027-01-30' → timing {m:3,d:0}, no error; '2026-10-30'+'2027-01-31' → errors.firstPaymentDate 'More than 3 months after the contract date. Check the dates.', timing null
 months '60.5' → errors.months 'Enter a whole number.'; contractPaymentCount '0' → 'Must be from 1 to 96.'
 ```
 
