@@ -7,6 +7,7 @@ import {
   aprTolerancePointsText,
   card,
   countOf,
+  firstPeriodText,
   listOf,
   missingInputNote,
   theirRateMathText,
@@ -508,18 +509,6 @@ function solutionText(solution) {
     return 'over 100%';
   }
   return formatRatePercent(solution.percent, 'halfUp', 3);
-}
-
-// A first period in words: "1 month and 15 days", "15 days", "2 months".
-function firstPeriodText({ m, d }) {
-  const parts = [];
-  if (m > 0) {
-    parts.push(countOf(m, 'month'));
-  }
-  if (d > 0) {
-    parts.push(countOf(d, 'day'));
-  }
-  return parts.join(' and ');
 }
 
 // A payment schedule for "Show the math": "60 × $671.65", or "59 × $671.65 + $786.51" when the last payment differs.

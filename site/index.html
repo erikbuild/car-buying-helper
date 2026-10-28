@@ -108,10 +108,11 @@
         <label for="downPayment">Down payment</label>
         <div class="input-row">
           <input id="downPayment" type="text" inputmode="decimal" autocomplete="off" placeholder="0"
-            aria-describedby="downPayment-error">
+            aria-describedby="downPayment-hint downPayment-error">
           <button type="button" data-step-down="-50000">−$500</button>
           <button type="button" data-step-down="50000">+$500</button>
         </div>
+        <p class="hint" id="downPayment-hint" data-hint-for="downPayment">Typing a down payment ties their quote to it. Use −$500/+$500 to try one out.</p>
         <p id="downPayment-error" data-error-for="downPayment"></p>
       </div>
 
@@ -227,7 +228,7 @@
           <input id="firstPaymentDate" type="date" aria-describedby="contractDates-hint firstPaymentDate-error">
           <p id="firstPaymentDate-error" data-error-for="firstPaymentDate"></p>
         </div>
-        <!-- The app writes this hint while only one of the two dates is entered. -->
+        <!-- The app writes this hint: "Enter both dates." with only one entered, or the first period between a valid pair. -->
         <p class="hint" id="contractDates-hint" data-hint-for="contractDates"></p>
       </details>
     </section>

@@ -35,6 +35,7 @@ const FIELDS = [
 // The hints the page shows under their fields (§6.2, §6.3).
 const HINTS = {
   rebates: 'Cash offered instead of the special rate goes on the Loan tab.',
+  downPayment: 'Typing a down payment ties their quote to it. Use −$500/+$500 to try one out.',
   theirApr: 'Leave blank if they only quote a payment.',
   theirPayment: 'Ask for the exact payment, to the cent.',
   contractFinalPayment: 'Only if the last payment is different',

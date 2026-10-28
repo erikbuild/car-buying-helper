@@ -89,7 +89,8 @@ function renderPriceTab({ discount, taxLine, dmv, driveAway, theirTaxCheck, thei
   setText('[data-calc="their-drive-away-check"]', theirDriveAwayCheck ?? '');
 }
 
-// Each field's inline error, and the contract dates' hint while only one of them is entered (SPEC §6.3, §9).
+// Each field's inline error, and the contract dates' hint: "Enter both dates." while only one is entered, or the first
+// period between a valid pair (SPEC §6.3, §9).
 function renderFieldMessages(errors, dateHint) {
   for (const name of FIELD_NAMES) {
     setText(`[data-error-for="${name}"]`, errors[name] ?? '');

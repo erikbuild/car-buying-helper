@@ -88,7 +88,7 @@ test('every field reads into its own DealInputs value', () => {
     },
     errors: {},
     extraErrors: {},
-    dateHint: null,
+    dateHint: 'First payment 1 month and 15 days after the contract date.',
   });
 });
 
@@ -244,8 +244,29 @@ test('with only one contract date entered, the dates ask for both and count as b
 test("both contract dates, in order, set the first payment's timing", () => {
   const { inputs, errors, dateHint } = readInputs(typed({ contractDate: '2026-10-30', firstPaymentDate: '2026-12-14' }));
   assert.deepEqual(inputs.contract.timing, { m: 1, d: 15 });
-  assert.equal(dateHint, null);
+  assert.equal(dateHint, 'First payment 1 month and 15 days after the contract date.');
   assert.deepEqual(errors, {});
+});
+
+test('a valid pair of contract dates gives the first period between them as their hint, in the singular for 1', () => {
+  // §7.3's examples (contract date → first payment date), then: a first payment on the last day of November, which
+  // counts back to the last day of October (§7.3); a month to the day; one day; and 3 months to the day.
+  const hints = [
+    ['2026-10-30', '2026-12-14', 'First payment 1 month and 15 days after the contract date.'],
+    ['2026-10-30', '2026-11-19', 'First payment 20 days after the contract date.'],
+    ['2027-01-31', '2027-03-30', 'First payment 1 month and 28 days after the contract date.'],
+    ['2027-01-15', '2027-02-28', 'First payment 1 month and 16 days after the contract date.'],
+    ['2028-01-30', '2028-03-30', 'First payment 2 months after the contract date.'],
+    ['2026-10-30', '2026-11-30', 'First payment 1 month and 1 day after the contract date.'],
+    ['2026-10-15', '2026-11-15', 'First payment 1 month after the contract date.'],
+    ['2026-10-30', '2026-10-31', 'First payment 1 day after the contract date.'],
+    ['2026-10-30', '2027-01-30', 'First payment 3 months after the contract date.'],
+  ];
+  for (const [contractDate, firstPaymentDate, hint] of hints) {
+    const { errors, dateHint } = readInputs(typed({ contractDate, firstPaymentDate }));
+    assert.equal(dateHint, hint, `${contractDate} → ${firstPaymentDate}`);
+    assert.deepEqual(errors, {}, `${contractDate} → ${firstPaymentDate}`);
+  }
 });
 
 test('a first payment date on or before the contract date shows an error there, and the dates count as blank', () => {
@@ -260,7 +281,7 @@ test('a first payment date on or before the contract date shows an error there, 
 test('a first payment exactly 3 months after the contract date still sets the timing', () => {
   const { inputs, errors, dateHint } = readInputs(typed({ contractDate: '2026-10-30', firstPaymentDate: '2027-01-30' }));
   assert.deepEqual(inputs.contract.timing, { m: 3, d: 0 });
-  assert.equal(dateHint, null);
+  assert.equal(dateHint, 'First payment 3 months after the contract date.');
   assert.deepEqual(errors, {});
 });
 

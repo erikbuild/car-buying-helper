@@ -121,9 +121,10 @@ test("Example 3's contract shows the red amount-financed card", async ({ page })
   // With only one date entered, the dates ask for both (§6.3).
   const datesHint = page.locator('[data-hint-for="contractDates"]');
   await expect(datesHint).toHaveText('Enter both dates.');
+  // Once both are entered, a valid pair, the hint gives the first period between them (§6.3, §7.3).
   await typeFields(page, { firstPaymentDate });
-  await expect(datesHint).toBeEmpty();
-  await expect(datesHint).toBeHidden();
+  await expect(datesHint).toHaveText('First payment 1 month and 15 days after the contract date.');
+  await expect(datesHint).toBeVisible();
 
   await expect(page.locator('[data-strip="problems"]')).toHaveText('4 problems');
   await page.getByRole('tab', { name: 'Verdict' }).click();

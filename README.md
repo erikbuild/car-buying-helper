@@ -59,7 +59,7 @@ Numbers recalculate as you type; there's no submit button. The strip at the top 
 - If they quote only a payment, leave their rate blank; the page works out the rate.
 - Turn on **Taking the cash instead** if the deal takes the cash instead of the special rate.
 - If they offer a later first payment, enter both dates under **At signing: the contract** before checking the payment.
-- The −$500 and +$500 buttons try out other down payments. At a new down payment, ask for a new quote before relying on the payment check.
+- The −$500 and +$500 buttons try out other down payments. At a new down payment, ask for a new quote before relying on the payment check. Typing a down payment ties their quote to it, so use the ± buttons to try one out.
 
 **Extras.** Add each extra they pitch, with its price, to see what it would add per month and over the loan. If they quote an extra per month, ask for its full price. Turn on **In the deal** only for the ones their numbers include.
 

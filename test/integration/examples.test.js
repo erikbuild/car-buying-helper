@@ -48,10 +48,14 @@ function exampleForm(fields = {}) {
 }
 
 // What the page shows for a form: the deal it reads, the Verdict cards and the summary strip. Every form here holds
-// valid text, so no field has an error, and the contract dates are a valid pair whenever they're entered.
+// valid text, so no field has an error, and whenever the contract dates are entered they're Examples 2–4's valid
+// pair, so their hint gives the first period between them.
 function pageFor(form) {
   const { inputs, errors, extraErrors, dateHint } = readInputs(form);
-  assert.deepEqual({ errors, extraErrors, dateHint }, { errors: {}, extraErrors: {}, dateHint: null });
+  const contractDatesHint = inputs.contract.timing === null
+    ? null
+    : 'First payment 1 month and 15 days after the contract date.';
+  assert.deepEqual({ errors, extraErrors, dateHint }, { errors: {}, extraErrors: {}, dateHint: contractDatesHint });
   const deal = deriveDeal(inputs, connecticut);
   const cards = verdictCards(deal, connecticut, reference);
   return { deal, cards, strip: summaryStrip(deal, cards) };

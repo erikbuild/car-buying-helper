@@ -259,6 +259,18 @@ export function countOf(count, unit) {
   return count === 1 ? `1 ${unit}` : `${count} ${unit}s`;
 }
 
+// A first period in words: "1 month and 15 days", "15 days", "2 months".
+export function firstPeriodText({ m, d }) {
+  const parts = [];
+  if (m > 0) {
+    parts.push(countOf(m, 'month'));
+  }
+  if (d > 0) {
+    parts.push(countOf(d, 'day'));
+  }
+  return parts.join(' and ');
+}
+
 // Their rate for "Show the math", to 3 decimals (SPEC §7.0): their APR, or the rate worked out from their payment,
 // rounded down, or "unknown" while their rate is unknown.
 export function theirRateMathText({ inputs, theirRate }) {
