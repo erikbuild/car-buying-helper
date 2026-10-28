@@ -1,4 +1,4 @@
-// ABOUTME: Gives the end-to-end tests Playwright's test and expect, and the steps on the page that they share.
+// ABOUTME: Gives the end-to-end tests Playwright's test and expect, and the steps and measurements they share.
 // ABOUTME: A test fails when its page logs a console error or throws an uncaught error.
 import { test as base, expect } from '@playwright/test';
 
@@ -46,6 +46,16 @@ export async function expectStrip(page, { driveAway, shouldBe, theirs, problems 
   await expect(page.locator('[data-strip="should-be"]')).toHaveText(shouldBe);
   await expect(page.locator('[data-strip="theirs"]')).toHaveText(theirs);
   await expect(page.locator('[data-strip="problems"]')).toHaveText(problems);
+}
+
+// The elements of `locator` that are under 44px tall or under 44px wide, too small to tap (§9), as
+// [name, width, height]. The name is the element's id, or its text when it has no id.
+export async function tapTargetsUnder44px(locator) {
+  const sizes = await locator.evaluateAll((elements) => elements.map((element) => {
+    const { width, height } = element.getBoundingClientRect();
+    return [element.id || element.textContent.trim(), width, height];
+  }));
+  return sizes.filter(([, width, height]) => width < 44 || height < 44);
 }
 
 // Opens the Verdict tab and checks its cards' severities and headlines, in order.

@@ -2,7 +2,7 @@
 // ABOUTME: Checks each item's line, tip and hint, and that only the extras in the deal count toward the totals.
 import { connecticut } from '../../site/rules/connecticut.js';
 import { EXAMPLE_1_STRIP, EXAMPLE_1_TEXT, EXAMPLE_1_VERDICTS } from '../fixtures.js';
-import { test, expect, expectStrip, expectVerdicts, typeFields } from './fixtures.js';
+import { test, expect, expectStrip, expectVerdicts, tapTargetsUnder44px, typeFields } from './fixtures.js';
 
 // The warranty's line at $2,995 on Example 1's deal, out of the deal and in it (§6.4, §7.11).
 const WARRANTY_WOULD_ADD = 'Would add $61.43/mo, $3,685.80 over 60 months ($3,185.18 with tax)';
@@ -164,12 +164,9 @@ test("an extra's controls have their labels and keypad, 16px text and 44px tap t
   await expect(extraField(warranty, 'priceText')).toHaveAttribute('inputmode', 'decimal');
   await expect(warranty.getByRole('button', { name: 'Remove', exact: true })).toHaveAttribute('data-remove-extra');
 
-  const heights = await warranty.locator('input, button').evaluateAll((elements) => elements.map((element) => [
-    element.dataset.extraField ?? element.textContent,
-    element.getBoundingClientRect().height,
-  ]));
-  expect(heights).toHaveLength(controls.length + 1);
-  expect(heights.filter(([, height]) => height < 44)).toEqual([]);
+  const tapTargets = warranty.locator('input, button');
+  await expect(tapTargets).toHaveCount(controls.length + 1);
+  expect(await tapTargetsUnder44px(tapTargets)).toEqual([]);
   const fontSizes = await warranty.locator('input').evaluateAll((inputs) =>
     inputs.map((input) => [input.dataset.extraField, parseFloat(getComputedStyle(input).fontSize)]));
   expect(fontSizes.filter(([, size]) => size < 16)).toEqual([]);

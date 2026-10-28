@@ -93,9 +93,11 @@ a {
   outline-offset: 2px;
 }
 
-/* Tap targets are at least 44px tall. Quick repeated taps, like on the ± buttons, aren't taken as a double-tap zoom. */
+/* Tap targets are at least 44px tall and 44px wide. Quick repeated taps, like on the ± buttons, aren't taken as a
+   double-tap zoom. */
 button {
   min-block-size: 2.75rem;
+  min-inline-size: 2.75rem;
   padding: 0.5rem 0.875rem;
   border: 1px solid var(--control-border);
   border-radius: 0.5rem;

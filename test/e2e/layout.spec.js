@@ -1,7 +1,7 @@
 // ABOUTME: End-to-end checks of the page layout: each field's label, keypad and place, text size, tap targets and colors.
 // ABOUTME: Also checks the elements the app fills in, the sticky strip, phone and desktop widths, and the outside links.
 import { connecticut } from '../../site/rules/connecticut.js';
-import { test, expect } from './fixtures.js';
+import { test, expect, tapTargetsUnder44px } from './fixtures.js';
 
 // Each field's id, its visible label, its keypad (an inputmode, or the date picker), and where it sits on the page.
 const FIELDS = [
@@ -177,14 +177,14 @@ test('input text is at least 16px, so iOS does not zoom in', async ({ page }) =>
   expect(fontSizes.filter(([, size]) => size < 16)).toEqual([]);
 });
 
-test('every button, input, summary, tab and link is at least 44px tall', async ({ page }) => {
+test('every button, input, summary, tab and link is at least 44px tall and 44px wide', async ({ page }) => {
   await page.goto('./');
   await showEverything(page);
   await expect(page.locator('input')).toHaveCount(FIELDS.length + 1);
   await expect(page.getByRole('tab')).toHaveCount(4);
-  const heights = await page.locator('button, input, summary, [role="tab"], a').evaluateAll((elements) =>
-    elements.map((element) => [element.id || element.textContent.trim(), element.getBoundingClientRect().height]));
-  expect(heights.filter(([, height]) => height < 44)).toEqual([]);
+  // With no sale price yet, the strip's problem count is "—", its narrowest text (§6.1).
+  await expect(page.locator('[data-strip="problems"]')).toHaveText('—');
+  expect(await tapTargetsUnder44px(page.locator('button, input, summary, [role="tab"], a'))).toEqual([]);
 });
 
 test('light and dark follow the system setting', async ({ page }) => {
