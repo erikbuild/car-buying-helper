@@ -498,11 +498,13 @@ downCents 4000000 → isCashDeal true, shouldBeCents null, extras perMonthCents 
 ### Task 11: Display text (`site/lib/display.js`)
 
 **Interfaces:**
-- Consumes: Deal and Card shapes; Task 3's formatters.
+- Consumes: Deal and Card shapes; Task 3's formatters; the rules' `tax.standardBp`, the service base's rate, which Price doesn't carry.
 - Produces:
   - `summaryStrip(deal, cards) → {driveAway, shouldBe, theirs /*string|null*/, problems}` (§6.1).
-  - `taxLine(price) → string`, with one term per base in use.
-  - `priceTabLines(deal) → {discount, taxLine, dmv, driveAway, theirTaxCheck, theirDriveAwayCheck}`.
+  - `taxLine(price, rules) → string`, with one term per base in use.
+  - `priceTabLines(deal, rules) → {discount, taxLine, dmv, driveAway, theirTaxCheck /*string|null*/, theirDriveAwayCheck /*string|null*/}`. Each check is null while their figure is blank.
+  - `workedOutRateText({percent, zero, over100}) → string`: R in §7.5's forms, "at least 7.44%", "0%" or "over 100%".
+  - `problemCount(cards) → integer`: the red and amber cards. It lives here because `checks.js` imports the card modules, which import this one.
   - `amountFinancedLine(deal)` and `extraLine(deal, extraId)` (§6.4).
   - `keyNumbers(deal) → [{label, value}]`.
 
@@ -530,7 +532,7 @@ keyNumbers(APR blank) includes {label:'Their rate', value:'at least 7.44%, from 
 ### Task 12: Desk cards (`site/lib/desk-checks.js`)
 
 **Interfaces:**
-- Consumes: Deal; `taxLine`; `connecticut`, `reference`; the loan module.
+- Consumes: Deal; `taxLine(price, rules)`, and `workedOutRateText` for card 1's rate wording; `connecticut`, `reference`; the loan module.
 - Produces:
   - `deskCards(deal, rules, reference) → Card[]`, in card-number order. It returns cards 1–12 when it's a loan, and Paying cash in place of 1–5 in a cash deal.
   - `hiddenAmountCents(deal)` (E, §7.5).
@@ -616,10 +618,9 @@ only contractDate and firstPaymentDate entered → []
 **Files:** Create `site/lib/checks.js`, `test/unit/checks.test.js`, `test/integration/examples.test.js`
 
 **Interfaces:**
-- Consumes: `deskCards`, `contractCards`, `readInputs`, `deriveDeal`, `summaryStrip`, `emptyForm`, `editField`, `setTakingCash`, `addExtra`, `editExtra`.
+- Consumes: `deskCards`, `contractCards`, `readInputs`, `deriveDeal`, `summaryStrip`, `priceTabLines`, `problemCount`, `emptyForm`, `editField`, `setTakingCash`, `addExtra`, `editExtra`.
 - Produces:
   - `verdictCards(deal, rules, reference) → Card[]`. Order: red, amber, green, neutral, then card number. With no sale price, it returns only the start card: neutral, headline "Enter their sale price on the Price tab to start."
-  - `problemCount(cards) → integer`.
 
 - [ ] **Step 1: Write the failing tests.**
   - `checks.test.js`:
@@ -654,7 +655,7 @@ only contractDate and firstPaymentDate entered → []
 **Interfaces:**
 - Consumes: everything above, and the DOM contract from Task 7.
 - Produces:
-  - `render(form)`: on every input or change, `readInputs → deriveDeal → verdictCards → summaryStrip / priceTabLines / keyNumbers`, then update the DOM. Field values are written to inputs only on load and on Start over, never while typing.
+  - `render(form)`: on every input or change, `readInputs → deriveDeal → verdictCards → summaryStrip / priceTabLines(deal, rules) / keyNumbers`, then update the DOM. Field values are written to inputs only on load and on Start over, never while typing.
   - Card markup: `<article data-card=<key> data-severity=<sev>>` with the severity word, an `h3` headline, a sentence, an optional context line, and `<details><summary>Show the math</summary>`.
   - The checklist renders from `connecticut.checklist`.
   - Start over runs `confirm('Start over? This clears the whole deal.')`.
