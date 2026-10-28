@@ -587,7 +587,7 @@ down 4000000 → [docFee, extras, payingCash]; payingCash neutral "Paying cash: 
   - `contractCards(deal, reference) → Card[]`. It returns `[]` unless a contract field other than the dates is entered, or when it's a cash deal.
   - `contractSchedule(contract) → number[] | null`. It uses the implied final payment when the final payment is blank and the total doesn't match (§7.10). With a final payment, entered or implied, the schedule is `levelPayments(payment, count − 1, final)`; without one, `levelPayments(payment, count)`.
   - `contractAprResults(deal, reference) → [{timing, percent /*number|null*/}]`, for the allowed contract timings only.
-  - `quoteComparisons(deal) → {apr, payment, term}`. Each is `{ran, failed, text}`.
+  - `quoteComparisons(deal, reference) → {apr, payment, term}`. Each is `{ran, failed, text}`. Comparison 1's tolerance is `reference.regZ.aprToleranceMilli`.
 
 - [ ] **Step 1: Write the failing tests** (`test/unit/contract-checks.test.js`). The contract dates are 2026-10-30 → 2026-12-14 unless a line says otherwise.
 
