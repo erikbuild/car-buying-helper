@@ -839,8 +839,8 @@ function dmvFeesCard(deal, rules) {
 }
 
 // Card 12, Extras (SPEC §6.5, §7.7). Always shows. The extras in the deal count as one item, with the tax they add,
-// spread over the loan at their rate. With their rate worked out from their payment, the amount over the loan is
-// rounded down (§7.0).
+// spread over the loan at their rate. With their rate worked out from their payment, both amounts are lower bounds, so
+// they read "at least", and the amount over the loan is rounded down (§6.5, §7.0).
 function extrasCard(deal) {
   if (deal.extrasInDeal === null) {
     return card('extras', 12, {
@@ -863,11 +863,15 @@ function extrasCard(deal) {
     return card('extras', 12, { severity: 'amber', headline, sentence: "That's with tax. All optional.", math });
   }
   const loanCents = deal.price.amountFinancedCents;
-  const overLoan = deal.theirRate.entered ? formatDollars(overLoanCents) : formatDollarsDown(overLoanCents);
+  const perMonth = `+${formatCents(perMonthCents)}/mo`;
+  const overMonths = `over ${countOf(months, 'month')}`;
+  const amounts = deal.theirRate.entered
+    ? `${perMonth}, ${formatDollars(overLoanCents)} ${overMonths}`
+    : `At least ${perMonth}, at least ${formatDollarsDown(overLoanCents)} ${overMonths}`;
   return card('extras', 12, {
     severity: 'amber',
     headline,
-    sentence: `+${formatCents(perMonthCents)}/mo, ${overLoan} over ${countOf(months, 'month')}. All optional.`,
+    sentence: `${amounts}. All optional.`,
     math: [
       ...costLines,
       `Their rate: ${theirRateMathText(deal)}`,

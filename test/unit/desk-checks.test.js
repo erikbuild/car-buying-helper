@@ -567,10 +567,10 @@ test('card 12: extras in the deal are amber, with what they add to the payments 
   assert.equal(cardFor('extras', { extras: [{ ...WARRANTY_IN_DEAL, inDeal: false }] }).severity, 'green');
 });
 
-test('card 12: with a rate worked out from their payment, the amount over the loan is rounded down (§7.0)', () => {
-  // $70.88 × 60 is $4,252.80.
+test('card 12: with a rate worked out from their payment, both amounts read at least (§6.5, §7.0)', () => {
+  // They're lower bounds, like the rate. $70.88 × 60 is $4,252.80, which rounds down.
   const card = cardFor('extras', { theirAprMilli: null, theirPaymentCents: 85000, extras: [WARRANTY_IN_DEAL] });
-  assert.equal(card.sentence, '+$70.88/mo, $4,252 over 60 months. All optional.');
+  assert.equal(card.sentence, 'At least +$70.88/mo, at least $4,252 over 60 months. All optional.');
 });
 
 test('a cash deal has the Paying cash note in place of cards 1–5 (Example 7)', () => {
