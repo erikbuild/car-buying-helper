@@ -112,4 +112,5 @@ export const EXAMPLE_1_STRIP = {
 // Example 1's payment card sentence (§7.11).
 export const EXAMPLE_1_PAYMENT_SENTENCE =
   'At 5.9% for 60 months it should be $671.65 to $673.30. Either the real rate is at least 7.44%, or at least '
-  + '$1,320 extra is in the loan, or the first payment is more than 45 days away.';
+  + '$1,320 extra is in the loan, or the first payment is more than 45 days away (enter both dates under At signing '
+  + 'to check).';

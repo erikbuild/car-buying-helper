@@ -92,6 +92,21 @@ test('R is just above 0% when the payments total a little more than the amount f
   assert.deepEqual(dealWith({ theirAprMilli: null, months: 6, theirPaymentCents: 580419 }).workedOutRate, zero);
 });
 
+test("a payment that can't pay off the amount financed even at 0% gives no rate", () => {
+  // $560.00 is more than $1 under $580.42, the 0% payment on $34,825.14 for 60 months (§7.5).
+  const deal = dealWith({ theirAprMilli: null, theirPaymentCents: 56000 });
+  assert.equal(deal.workedOutRate, null);
+  assert.equal(deal.theirRate, null);
+});
+
+test('a payment within $1 under the 0% payment still works out to 0%', () => {
+  // $966.37 is exactly $1 under $967.37, the 0% payment for 36 months, and one cent less leaves their rate unknown.
+  const workedOutRateFor = (theirPaymentCents) =>
+    dealWith({ theirAprMilli: null, months: 36, theirPaymentCents }).workedOutRate;
+  assert.deepEqual(workedOutRateFor(96637), { percent: 0, over100: false });
+  assert.equal(workedOutRateFor(96636), null);
+});
+
 test("a down payment other than the quote's makes the quote out of date, so no rate is worked out from it", () => {
   assert.equal(dealWith({ downCents: 550000 }).quoteCurrent, false);
   const deal = dealWith({ downCents: 550000, theirAprMilli: null });

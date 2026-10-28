@@ -265,7 +265,7 @@ export function theirRateMathText({ inputs, theirRate }) {
   return `${workedOutRateText(theirRate, 3)}, worked out from their payment`;
 }
 
-// Reg Z's APR tolerance in full, for "Show the math": "0.125 points".
+// Reg Z's APR tolerance in full, "0.125 points", as cards 3 and 4's "Within …" headlines and "Show the math" give it.
 export function aprTolerancePointsText(reference) {
   return `${reference.regZ.aprToleranceMilli / MILLI_PER_PERCENT} points`;
 }

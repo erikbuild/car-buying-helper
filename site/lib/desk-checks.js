@@ -1,6 +1,6 @@
 // ABOUTME: Builds Verdict cards 1–12, which check the numbers quoted at the sales desk.
 // ABOUTME: In a cash deal, a Paying cash note replaces the payment and rate cards.
-import { rateFromPayment } from './deal.js';
+import { rateFromPayment, tooSmallToPayOff } from './deal.js';
 import {
   DESK_TIMING_NAMES,
   MATCH_TOLERANCE_CENTS,
@@ -174,6 +174,22 @@ function theirRateIsAbove(deal, limitMilli) {
   return deal.theirRate.percent > limitMilli / MILLI_PER_PERCENT;
 }
 
+// Whether their rate is unknown because their payment-only quote is out of date (SPEC §6.3): their APR is blank, and
+// their payment was quoted at another down payment, so no rate is worked out from it.
+function paymentOnlyQuoteIsOutOfDate(deal) {
+  return deal.inputs.theirAprMilli === null && deal.quoteCurrent === false;
+}
+
+// The note cards 3 and 4 give while a payment-only quote is out of date (SPEC §6.5): it asks for a quote at the down
+// payment now entered in place of their rate, after the other blank inputs the card needs, which otherBlankNames lists.
+function outOfDateQuoteNote(deal, otherBlankNames, purpose, sentence, math) {
+  const quote = `a new quote at ${formatDollars(deal.inputs.downCents)} down`;
+  const ask = otherBlankNames.length === 0
+    ? `Ask for ${quote}`
+    : `Enter ${listOf(otherBlankNames)} and ask for ${quote}`;
+  return { severity: 'neutral', headline: `${ask} to ${purpose}.`, sentence, math };
+}
+
 // Card 1, Payment adds up (SPEC §6.5, §7.4, §7.5). Shows when their payment is entered.
 function paymentCard(deal) {
   if (deal.inputs.theirPaymentCents === null) {
@@ -183,7 +199,9 @@ function paymentCard(deal) {
 }
 
 // Card 1's outcome: their payment against the lowest and highest payments their APR gives over the desk timings, with
-// $1 either side. Without their APR, the lowest is the 0% payment. Needs the months.
+// $1 either side. Without their APR, the lowest is the 0% payment, and a payment more than $1 under it can't pay off
+// the loan at any rate, the same check that leaves the rate worked out from their payment unknown (§7.5). Needs the
+// months.
 function paymentOutcome(deal) {
   const { theirPaymentCents, months, theirAprMilli } = deal.inputs;
   const loanCents = deal.price.amountFinancedCents;
@@ -201,9 +219,11 @@ function paymentOutcome(deal) {
     return outOfDateQuoteOutcome(deal);
   }
   const forMonths = `for ${countOf(months, 'month')}`;
-  const lowCents = theirAprMilli === null ? monthlyPayment(loanCents, 0, months) : deal.expected.lowCents;
   const math = paymentMath(deal);
-  if (theirPaymentCents < lowCents - MATCH_TOLERANCE_CENTS && theirPaymentCents * months < loanCents) {
+  const cantPayOff = theirAprMilli === null
+    ? tooSmallToPayOff(theirPaymentCents, months, loanCents)
+    : theirPaymentCents < deal.expected.lowCents - MATCH_TOLERANCE_CENTS && theirPaymentCents * months < loanCents;
+  if (cantPayOff) {
     return {
       severity: 'red',
       headline: `${theirs} ${forMonths} can't pay off ${formatDollars(loanCents)}.`,
@@ -220,7 +240,7 @@ function paymentOutcome(deal) {
     };
   }
   const shouldBe = `At ${formatRateMilli(theirAprMilli)} ${forMonths} it should be ${paymentRangeText(deal.expected)}.`;
-  if (theirPaymentCents < lowCents - MATCH_TOLERANCE_CENTS) {
+  if (theirPaymentCents < deal.expected.lowCents - MATCH_TOLERANCE_CENTS) {
     return {
       severity: 'amber',
       headline: `${theirs} is less than this deal should cost.`,
@@ -271,9 +291,10 @@ function outOfDateQuoteOutcome(deal) {
 }
 
 // Card 1's sentence when their payment is too high (SPEC §6.5): the payments their APR gives, then the smallest rate
-// and hidden amount that explain theirs. The hidden amount is left out when it shows as $0 (§7.5). A first payment more
-// than 45 days away could explain it too, except at 0%, where the timing doesn't change the payment, or once the
-// contract's dates are entered.
+// and hidden amount that explain theirs. Their payment is above the highest payment their APR gives, which is at least
+// the 0% payment, so it's never too small to pay off the loan and always gives a rate. The hidden amount is left out
+// when it shows as $0 (§7.5). A first payment more than 45 days away could explain it too, except at 0%, where the
+// timing doesn't change the payment, or once the contract's dates are entered. That reason says how to check it.
 function tooHighSentence(deal, shouldBe) {
   const { theirAprMilli, docFeeCents, theirPaymentCents, months } = deal.inputs;
   const realRate = workedOutRateText(
@@ -285,7 +306,7 @@ function tooHighSentence(deal, shouldBe) {
     otherReasons.push(`at least ${formatTensDown(hiddenCents)} extra is in the loan`);
   }
   if (theirAprMilli > 0 && deal.contractTiming === null) {
-    otherReasons.push('the first payment is more than 45 days away');
+    otherReasons.push('the first payment is more than 45 days away (enter both dates under At signing to check)');
   }
   const reasons = otherReasons.length === 0
     ? `The real rate is ${realRate}.`
@@ -300,7 +321,8 @@ function paymentRangeText({ lowCents, highCents }) {
 }
 
 // Card 1's math: the loan, and with their APR the payment it gives with each desk timing and the accepted range they
-// make. Without their APR, the 0% payment and the rate their payment works out to with each timing.
+// make. Without their APR, the 0% payment and the rate their payment works out to with each timing, or that it can't
+// pay off the loan at any rate.
 function paymentMath(deal) {
   const { theirPaymentCents, months, theirAprMilli } = deal.inputs;
   const loanCents = deal.price.amountFinancedCents;
@@ -309,11 +331,14 @@ function paymentMath(deal) {
     `Their payment: ${formatCents(theirPaymentCents)} for ${countOf(months, 'month')}`,
   ];
   if (theirAprMilli === null) {
+    const rateLines = tooSmallToPayOff(theirPaymentCents, months, loanCents)
+      ? ["Their payment is more than $1 under the 0% payment, so it can't pay off the amount financed at any rate."]
+      : rateFromPaymentLines(deal);
     return [
       ...loanLines,
       'Their APR: blank',
       `At 0%: ${formatCents(loanCents)} ÷ ${months} = ${formatCents(monthlyPayment(loanCents, 0, months))}`,
-      ...rateFromPaymentLines(deal),
+      ...rateLines,
     ];
   }
   return [
@@ -416,8 +441,10 @@ function specialRateCard(deal, reference) {
   return card('specialRate', 3, specialRateOutcome(deal, reference));
 }
 
-// Card 3's outcome: their rate against the special rate, which counts as met within Reg Z's APR tolerance. On a loan
-// longer than the special covers, it asks for the cash instead. Needs the months and the longest term it covers.
+// Card 3's outcome: their rate against the special rate, which counts as met within Reg Z's APR tolerance. A rate above
+// the special but within the tolerance says so. On a loan longer than the special covers, it asks for the cash instead.
+// While a payment-only quote is out of date, it asks for a quote at the down payment now entered in place of their
+// rate. Needs the months and the longest term it covers.
 function specialRateOutcome(deal, reference) {
   const { specialAprMilli, specialCoversMonths, months, cashInsteadCents } = deal.inputs;
   const special = formatRateMilli(specialAprMilli);
@@ -439,7 +466,9 @@ function specialRateOutcome(deal, reference) {
   if (deal.theirRate !== null && !theirRateIsAbove(deal, specialAprMilli + toleranceMilli)) {
     return {
       severity: 'green',
-      headline: `On the automaker's ${special} special.`,
+      headline: theirRateIsAbove(deal, specialAprMilli)
+        ? `Within ${aprTolerancePointsText(reference)} of the ${special} special.`
+        : `On the automaker's ${special} special.`,
       sentence: `Their rate is ${theirRateText(deal)}.`,
       math,
     };
@@ -464,6 +493,9 @@ function specialRateOutcome(deal, reference) {
   }
   if (deal.theirRate === null) {
     const sentence = `The special covers your ${months}-month loan.`;
+    if (paymentOnlyQuoteIsOutOfDate(deal)) {
+      return outOfDateQuoteNote(deal, [], `check their rate against the ${special} special`, sentence, math);
+    }
     return missingInputNote('their rate', `check it against the ${special} special`, sentence, math);
   }
   const specialPercent = specialAprMilli / MILLI_PER_PERCENT;
@@ -503,27 +535,27 @@ function outsideRateCard(deal, reference) {
   return card('outsideRate', 4, outsideRateOutcome(deal, reference));
 }
 
-// Card 4's outcome: their rate against your outside rate, with Reg Z's APR tolerance allowed. Needs their rate, your
-// outside rate and the months. The note asking for them, and the amber outcome, add the Experian line.
+// Card 4's outcome: their rate against your outside rate, with Reg Z's APR tolerance allowed. A rate above your outside
+// rate but within the tolerance says so. Needs their rate, your outside rate and the months. While a payment-only quote
+// is out of date, the note asks for a quote at the down payment now entered in place of their rate, after the other
+// blank inputs. The note, and the amber outcome, add the Experian line.
 function outsideRateOutcome(deal, reference) {
   const { theirAprMilli, outsideAprMilli, months } = deal.inputs;
   const outsideLine = `Your outside rate: ${outsideAprMilli === null ? 'blank' : formatRateMilli(outsideAprMilli, 3)}`;
-  const blank = blankNames([
-    ['their rate', deal.theirRate],
-    ['your outside rate', outsideAprMilli],
-    ['months', months],
-  ]);
+  const otherBlank = blankNames([['your outside rate', outsideAprMilli], ['months', months]]);
+  const blank = deal.theirRate === null ? ['their rate', ...otherBlank] : otherBlank;
   if (blank.length > 0) {
+    const purpose = 'compare their loan with your own financing';
     const sentence = 'A bank or credit-union rate for the same term shows what their rate costs you.';
     const math = [
       `Their rate: ${theirRateMathText(deal)}`,
       outsideLine,
       `Months: ${months === null ? 'blank' : months}`,
     ];
-    return {
-      ...missingInputNote(listOf(blank), 'compare their loan with your own financing', sentence, math),
-      context: reference.experian.text,
-    };
+    const note = paymentOnlyQuoteIsOutOfDate(deal)
+      ? outOfDateQuoteNote(deal, otherBlank, purpose, sentence, math)
+      : missingInputNote(listOf(blank), purpose, sentence, math);
+    return { ...note, context: reference.experian.text };
   }
   const toleranceMilli = reference.regZ.aprToleranceMilli;
   const outsidePercent = outsideAprMilli / MILLI_PER_PERCENT;
@@ -537,7 +569,9 @@ function outsideRateOutcome(deal, reference) {
   if (!theirRateIsAbove(deal, outsideAprMilli + toleranceMilli)) {
     return {
       severity: 'green',
-      headline: `At or under your ${outside} outside rate.`,
+      headline: theirRateIsAbove(deal, outsideAprMilli)
+        ? `Within ${aprTolerancePointsText(reference)} of your ${outside} outside rate.`
+        : `At or under your ${outside} outside rate.`,
       sentence: `Their rate is ${theirRateText(deal)}.`,
       math,
     };

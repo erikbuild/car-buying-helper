@@ -138,7 +138,8 @@ test("card 1: Example 1's payment is too high, with the smallest rate and hidden
   assert.equal(
     cardFor('payment').sentence,
     'At 5.9% for 60 months it should be $671.65 to $673.30. Either the real rate is at least 7.44%, or at least '
-      + '$1,320 extra is in the loan, or the first payment is more than 45 days away.',
+      + '$1,320 extra is in the loan, or the first payment is more than 45 days away (enter both dates under At '
+      + 'signing to check).',
   );
 });
 
@@ -177,6 +178,38 @@ test("card 1: without their APR, L is the 0% payment, so a payment too small eve
   assert.deepEqual(verdictOf(cardFor('payment', { ...zeroPercentFor36(96500), theirAprMilli: null })), [
     'red',
     "$965.00/mo for 36 months can't pay off $34,825.",
+  ]);
+  // $966.37 is exactly $1 under the $967.37 0% payment, so it still works out to 0%, and one cent less is red (§7.5).
+  assert.deepEqual(verdictOf(cardFor('payment', { ...zeroPercentFor36(96637), theirAprMilli: null })), [
+    'neutral',
+    '$966.37/mo for 36 months works out to 0%.',
+  ]);
+  assert.deepEqual(verdictOf(cardFor('payment', { ...zeroPercentFor36(96636), theirAprMilli: null })), [
+    'red',
+    "$966.36/mo for 36 months can't pay off $34,825.",
+  ]);
+});
+
+test("a payment-only quote that can't pay off the loan even at 0% leaves their rate unknown (§7.5, §13)", () => {
+  const tooSmall = { theirAprMilli: null, theirPaymentCents: 56000 };
+  const payment = cardFor('payment', tooSmall);
+  assert.deepEqual(verdictOf(payment), ['red', "$560.00/mo for 60 months can't pay off $34,825."]);
+  // There's no rate it works out to, so the math doesn't give one.
+  const math = payment.math.join('\n');
+  assert.ok(
+    payment.math.includes(
+      "Their payment is more than $1 under the 0% payment, so it can't pay off the amount financed at any rate.",
+    ),
+    math,
+  );
+  assert.ok(!math.includes('works out to'), math);
+  assert.deepEqual(verdictOf(cardFor('specialRate', tooSmall)), [
+    'amber',
+    "You're not getting the 0% special or the $1,000 cash.",
+  ]);
+  assert.deepEqual(verdictOf(cardFor('outsideRate', tooSmall)), [
+    'neutral',
+    'Enter their rate to compare their loan with your own financing.',
   ]);
 });
 
@@ -306,6 +339,13 @@ test('card 3: their rate at or under the special is green, even on a loan longer
   assert.equal(cardFor('specialRate', { theirAprMilli: 125, months: 36 }).severity, 'green');
 });
 
+test('card 3: a rate above the special but within 0.125 points of it says so (§13)', () => {
+  const verdictAt = (theirAprMilli) => verdictOf(cardFor('specialRate', { theirAprMilli, months: 36 }));
+  assert.deepEqual(verdictAt(0), ['green', "On the automaker's 0% special."]);
+  assert.deepEqual(verdictAt(125), ['green', 'Within 0.125 points of the 0% special.']);
+  assert.deepEqual(verdictAt(126), ['red', "Should be the automaker's 0% special."]);
+});
+
 test('card 3: a rate above the special on a loan it covers is red, with what it costs and the cash', () => {
   const card = cardFor('specialRate', { months: 36 });
   assert.deepEqual(verdictOf(card), ['red', "Should be the automaker's 0% special."]);
@@ -339,6 +379,14 @@ test("card 3: on a loan longer than the special covers, it's amber with the cash
 test("card 3: with their rate unknown on a loan the special covers, it asks for their rate", () => {
   const card = cardFor('specialRate', { theirAprMilli: null, theirPaymentCents: null, months: 36 });
   assert.deepEqual(verdictOf(card), ['neutral', 'Enter their rate to check it against the 0% special.']);
+});
+
+test('card 3: while a payment-only quote is out of date, it asks for a quote at the down payment entered (§13)', () => {
+  const card = cardFor('specialRate', { theirAprMilli: null, months: 36, theirPaymentCents: 96737, downCents: 550000 });
+  assert.deepEqual(verdictOf(card), [
+    'neutral',
+    'Ask for a new quote at $5,500 down to check their rate against the 0% special.',
+  ]);
 });
 
 test('card 3 needs months and "covers loans up to"', () => {
@@ -377,10 +425,14 @@ test('card 4: with a rate worked out from their payment, the gap and the cost ar
   assert.ok(card.sentence.startsWith('That costs at least $1,898 over 60 months.'), card.sentence);
 });
 
-test('card 4: up to 0.125 points over your outside rate is green', () => {
-  const card = cardFor('outsideRate', { theirAprMilli: 5625 });
-  assert.deepEqual(verdictOf(card), ['green', 'At or under your 5.5% outside rate.']);
-  assert.equal(card.context, null);
+test('card 4: up to 0.125 points over your outside rate is green, and a rate over it says it is within (§13)', () => {
+  const atOrUnder = ['green', 'At or under your 5.5% outside rate.'];
+  assert.deepEqual(verdictOf(cardFor('outsideRate', { theirAprMilli: 5500 })), atOrUnder);
+  assert.deepEqual(verdictOf(cardFor('outsideRate', { theirAprMilli: 5400 })), atOrUnder);
+  const within = cardFor('outsideRate', { theirAprMilli: 5625 });
+  assert.deepEqual(verdictOf(within), ['green', 'Within 0.125 points of your 5.5% outside rate.']);
+  assert.equal(within.context, null);
+  assert.equal(cardFor('outsideRate', { theirAprMilli: 5626 }).severity, 'amber');
 });
 
 test("cards 3 and 4 give Reg Z's 0.125-point tolerance in full in their math", () => {
@@ -399,8 +451,9 @@ test("cards 2–4 and 12 give a payment-only quote's rate in their math as 0.000
   assert.equal(rateLine('rateCap', { theirPaymentCents: 96737, contract: { aprMilli: 15500 } }), zero);
   assert.equal(rateLine('specialRate', { theirPaymentCents: 96737 }), zero);
   assert.equal(rateLine('outsideRate', { theirPaymentCents: 96737, specialAprMilli: null }), zero);
-  // With the warranty in the deal, 36 × $967.37 is less than the amount financed, so the rate is 0%.
-  assert.equal(rateLine('extras', { theirPaymentCents: 96737, extras: [WARRANTY_IN_DEAL] }), zero);
+  // With the warranty in the deal, 36 × $1,055.00 is less than the $38,010.32 financed, and $1,055.00 is within $1 of
+  // its $1,055.84 0% payment, so the rate is 0%.
+  assert.equal(rateLine('extras', { theirPaymentCents: 105500, extras: [WARRANTY_IN_DEAL] }), zero);
   // $967.45 × 36 works out to 0.0055%, which shows as 0 to 2 decimals but not to 3.
   assert.equal(
     rateLine('specialRate', { theirPaymentCents: 96745 }),
@@ -418,6 +471,26 @@ test('card 4 needs your outside rate, and its note adds the Experian line', () =
   assert.equal(
     cardFor('outsideRate', { theirAprMilli: null, theirPaymentCents: null, outsideAprMilli: null }).headline,
     'Enter their rate and your outside rate to compare their loan with your own financing.',
+  );
+});
+
+test('card 4: while a payment-only quote is out of date, the note asks for a quote after other inputs (§13)', () => {
+  const outOfDate = { theirAprMilli: null, downCents: 550000 };
+  const card = cardFor('outsideRate', outOfDate);
+  assert.deepEqual(verdictOf(card), [
+    'neutral',
+    'Ask for a new quote at $5,500 down to compare their loan with your own financing.',
+  ]);
+  assert.equal(card.context, reference.experian.text);
+  assert.equal(
+    cardFor('outsideRate', { ...outOfDate, outsideAprMilli: null }).headline,
+    'Enter your outside rate and ask for a new quote at $5,500 down to compare their loan with your own financing.',
+  );
+  // With the special rate entered, card 4 is left off until card 3 has the months, so the special is blank here.
+  assert.equal(
+    cardFor('outsideRate', { ...outOfDate, outsideAprMilli: null, months: null, specialAprMilli: null }).headline,
+    'Enter your outside rate and months and ask for a new quote at $5,500 down to compare their loan with your own '
+      + 'financing.',
   );
 });
 

@@ -345,8 +345,8 @@ test('a worked-out rate rounding down to 0 at 3 decimals reads "0.000%" in the m
     theirRateMathText(dealWith({ theirAprMilli: null, months: 36, theirPaymentCents }));
   // SPEC §13: $967.37 × 36 on $34,825.14 works out to 0.000326%.
   assert.equal(rateFor(96737), '0.000%, worked out from their payment');
-  // 36 × $960.00 is less than $34,825.14, so the rate is 0%.
-  assert.equal(rateFor(96000), '0.000%, worked out from their payment');
+  // 36 × $966.37 is less than $34,825.14, and $966.37 is within $1 of the $967.37 0% payment, so the rate is 0%.
+  assert.equal(rateFor(96637), '0.000%, worked out from their payment');
   // $967.45 × 36 works out to 0.0055%, which shows as 0 to 2 decimals but not to 3.
   assert.equal(rateFor(96745), 'at least 0.005%, worked out from their payment');
 });

@@ -415,8 +415,8 @@ test("card 17's math gives a payment-only quote's rate as 0.000% when it rounds 
   const nearZero = mathFor(96737);
   assertHasLines(nearZero, ['Their rate: 0.000%, worked out from their payment']);
   assert.ok(nearZero.every((line) => !line.includes('at least 0.000%')), nearZero.join('\n'));
-  // 36 × $960.00 is less than $34,825.14, so the rate is 0%.
-  assertHasLines(mathFor(96000), ['Their rate: 0.000%, worked out from their payment']);
+  // 36 × $966.37 is less than $34,825.14, and $966.37 is within $1 of the $967.37 0% payment, so the rate is 0%.
+  assertHasLines(mathFor(96637), ['Their rate: 0.000%, worked out from their payment']);
   // $967.45 × 36 works out to 0.0055%, which shows as 0 to 2 decimals but not to 3.
   assertHasLines(mathFor(96745), ['Their rate: at least 0.005%, worked out from their payment']);
 });

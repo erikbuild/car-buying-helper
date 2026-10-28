@@ -1,12 +1,14 @@
 // ABOUTME: Derives the values the Verdict checks share from the parsed inputs.
 // ABOUTME: Covers the expected payment range, the rate worked out from a payment and what each extra adds.
+import { MATCH_TOLERANCE_CENTS } from './display.js';
 import { FORTY_FIVE_DAY, HIGHEST_RATE_PERCENT, REGULAR, levelPayments, monthlyPayment, solveRate } from './loan.js';
 import { MILLI_PER_PERCENT } from './numbers.js';
 import { docFeeCostCents, extrasInDealCostCents, itemCostCents, priceOf } from './price.js';
 
 // Works out the values the cards, the summary strip and the tabs share from the parsed inputs (SPEC §7.3–§7.7). A
 // figure is null when it needs a loan, which is a deal with a sale price that isn't a cash deal, or needs an input
-// that isn't entered.
+// that isn't entered. The rate worked out from their payment is also null while the quote is out of date, and when
+// their payment can't pay off the loan at any rate.
 export function deriveDeal(inputs, rules) {
   const price = priceOf(inputs, rules);
   const { months } = inputs;
@@ -65,10 +67,15 @@ function paymentsAtTheirApr(loanCents, theirAprPercent, months, deskTimings) {
   };
 }
 
-// Works out R, the rate at which their payment for each of the months pays off the amount financed (SPEC §7.5). It's
-// the smallest result over the timings, so it's never overstated, and 0% when the payments add up to no more than the
-// amount financed. When they're worth more than it even at 100% with every timing, R is over 100% and counts as 100%.
+// Works out R, the rate at which their payment for each of the months pays off the amount financed (SPEC §7.5), or
+// null when the payment is too small to pay it off at any rate. R is the smallest result over the timings, so it's
+// never overstated. It's 0% when the payments add up to no more than the amount financed, as they do for a payment
+// within $1 under the 0% payment. When they're worth more than it even at 100% with every timing, R is over 100% and
+// counts as 100%.
 export function rateFromPayment(paymentCents, months, loanCents, timings) {
+  if (tooSmallToPayOff(paymentCents, months, loanCents)) {
+    return null;
+  }
   if (paymentCents * months <= loanCents) {
     return { percent: 0, over100: false };
   }
@@ -84,6 +91,12 @@ export function rateFromPayment(paymentCents, months, loanCents, timings) {
   }
   const percent = Math.min(...percents);
   return { percent, over100: false };
+}
+
+// Whether a monthly payment for the months is too small to pay off the loan at any rate: it's more than $1 under the
+// 0% payment (SPEC §7.5). Its payments over the months add up to less than the loan.
+export function tooSmallToPayOff(paymentCents, months, loanCents) {
+  return paymentCents < monthlyPayment(loanCents, 0, months) - MATCH_TOLERANCE_CENTS;
 }
 
 // Their rate, which cards 2–4 and 17 and the extras' figures use (SPEC §7.5): their APR when it's entered, otherwise R
