@@ -68,7 +68,7 @@ function paymentsAtTheirApr(loanCents, theirAprPercent, months, deskTimings) {
 // the smallest result over the timings, so it's never overstated, and 0% when the payments add up to no more than the
 // amount financed. When they're worth more than it even at 100% with every timing, R is over 100% and counts as 100%.
 // zero says R shows as 0, which is when rounding it down to 2 decimals leaves 0 (SPEC §7.0).
-function rateFromPayment(paymentCents, months, loanCents, timings) {
+export function rateFromPayment(paymentCents, months, loanCents, timings) {
   if (paymentCents * months <= loanCents) {
     return { percent: 0, zero: true, over100: false };
   }

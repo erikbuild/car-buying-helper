@@ -466,7 +466,7 @@ months '60.5' → errors.months 'Enter a whole number.'; contractPaymentCount '0
 
 **Interfaces:**
 - Consumes: `priceOf`, `itemCostCents`, `docFeeCostCents`, `extrasInDealCostCents`; the loan module; `dealInputs`.
-- Produces: `deriveDeal(inputs, rules) → Deal`.
+- Produces: `deriveDeal(inputs, rules) → Deal`; `rateFromPayment(paymentCents, months, loanCents, timings) → {percent, zero, over100}`, R over the given timings (§7.5), which card 1 also uses.
   - `deskTimings` is `[REGULAR, FORTY_FIVE_DAY]`, plus `contract.timing` when it's set (§7.3).
   - `shouldBeCents` and `expected` need their APR, months, and a loan.
   - `quoteCurrent` is `theirPaymentCents != null ? downCents === quoteDownCents : null`.
@@ -532,7 +532,7 @@ keyNumbers(APR blank) includes {label:'Their rate', value:'at least 7.44%, from 
 ### Task 12: Desk cards (`site/lib/desk-checks.js`)
 
 **Interfaces:**
-- Consumes: Deal; `taxLine(price, rules)`, and `workedOutRateText` for card 1's rate wording; `connecticut`, `reference`; the loan module.
+- Consumes: Deal; `taxLine(price, rules)`, and `workedOutRateText` for card 1's rate wording; `rateFromPayment(paymentCents, months, loanCents, timings) → {percent, zero, over100}`, which `deal.js` exports and uses for `workedOutRate`, for R in card 1's outcome 5, where their APR is entered and `workedOutRate` is null; `connecticut`, `reference`; the loan module.
 - Produces:
   - `deskCards(deal, rules, reference) → Card[]`, in card-number order. It returns cards 1–12 when it's a loan, and Paying cash in place of 1–5 in a cash deal.
   - `hiddenAmountCents(deal)` (E, §7.5).
@@ -569,7 +569,7 @@ card 9: 3990000 → red "$75 more than the itemized numbers add up to."; 3970000
 card 10: docFee null → neutral "Ask for the doc fee."; 120000 → amber "$1,200 doc fee is above what CT Mazda dealers charge."
 card 11: titleRegistration 30000 → amber "$36 more than CT DMV charges."; 26400 + down 4000000 → amber "$10 more than CT DMV charges." (cash deal)
 card 12: warranty in deal → amber "Extras in the deal: $3,185." with "+$61.43/mo, $3,686 over 60 months. All optional."
-down 4000000 → [docFee, extras, payingCash]; payingCash neutral "Paying cash: no loan to check."
+down 4000000 → [payingCash, docFee, extras] (card-number order; Task 14 sorts by severity); payingCash neutral "Paying cash: no loan to check."
 ```
 
 - [ ] **Step 2:** Run `node --test test/unit/desk-checks.test.js`. Expected: FAIL.
