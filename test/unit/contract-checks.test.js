@@ -7,6 +7,7 @@ import { contractAprResults, contractCards, contractSchedule, quoteComparisons }
 import { levelPayments } from '../../site/lib/loan.js';
 import { reference } from '../../site/rules/reference.js';
 import { assertWithin } from '../assertions.js';
+import { verdictOf } from '../cards.js';
 import { dealInputs, dealWith, extra } from '../fixtures.js';
 
 // The contract dates the tests use unless they say otherwise, 2026-10-30 → 2026-12-14: the first payment 1 month and
@@ -64,11 +65,6 @@ function cardsWith(overrides) {
   return byKey(contractCardsWith(overrides));
 }
 
-// A card's severity and headline, the parts the tests check exactly (SPEC §6.5).
-function outcome(card) {
-  return [card.severity, card.headline];
-}
-
 // A contract financing Example 1's $34,825.14, with the usual dates and the fields given.
 function example1Contract(fields) {
   return { amountFinancedCents: 3482514, timing: CONTRACT_DATES, ...fields };
@@ -95,7 +91,7 @@ test("Example 2's clean 0% contract passes cards 13–17", () => {
     ['contractApr', 16],
     ['contractVsQuote', 17],
   ]);
-  assert.deepEqual(cards.map(outcome), [
+  assert.deepEqual(cards.map(verdictOf), [
     ['green', 'The amount financed matches your deal.'],
     ['green', 'The disclosure box adds up.'],
     ['green', 'Total of payments matches the schedule.'],
@@ -106,7 +102,7 @@ test("Example 2's clean 0% contract passes cards 13–17", () => {
 
 test("Example 3's packed contract finances $3,185 more than the deal adds up to, and otherwise checks out", () => {
   const cards = contractCardsWith({ contract: EXAMPLE_3_CONTRACT });
-  assert.deepEqual(cards.map(outcome), [
+  assert.deepEqual(cards.map(verdictOf), [
     ['red', '$3,185 more is financed than your deal adds up to.'],
     ['green', 'The disclosure box adds up.'],
     ['green', 'Total of payments matches the schedule.'],
@@ -129,12 +125,12 @@ test("the deal's amount financed counts the extras in the deal", () => {
   // With Example 3's warranty in the deal, the deal adds up to the contract's $38,010.32.
   const warranty = extra('extra-1', 'warranty', 299500, { inDeal: true });
   const cards = cardsWith({ extras: [warranty], contract: EXAMPLE_3_CONTRACT });
-  assert.deepEqual(outcome(cards.contractAmountFinanced), ['green', 'The amount financed matches your deal.']);
+  assert.deepEqual(verdictOf(cards.contractAmountFinanced), ['green', 'The amount financed matches your deal.']);
 });
 
 test("Example 4's honest contract works out to 5.800% with its dates and 5.900% with a regular first month", () => {
   const deal = dealWith({ ...EXAMPLE_4_QUOTE, contract: EXAMPLE_4_CONTRACT });
-  assert.deepEqual(contractCards(deal, reference).map(outcome), [
+  assert.deepEqual(contractCards(deal, reference).map(verdictOf), [
     ['green', 'The amount financed matches your deal.'],
     ['green', 'The disclosure box adds up.'],
     ['green', 'Total of payments matches the schedule.'],
@@ -155,15 +151,34 @@ test("the APR card's math shows the worked-out rates to 3 decimals and the 0.125
   assert.ok(math.includes('0.125 points'), math);
 });
 
+test("the APR card's math names the timings as cards 1 and 17 do, and says when Reg Z rules out the regular one", () => {
+  const aprMath = (contract) => cardsWith({ ...EXAMPLE_4_QUOTE, contract }).contractApr.math;
+  assertHasLines(aprMath(EXAMPLE_4_CONTRACT), [
+    "With the contract's dates, 1 month and 15 days to the first payment: 5.800%",
+    'With a first payment a month after signing: 5.900%',
+  ]);
+  // Without the dates, the 45-day timing stands in for them.
+  assertHasLines(aprMath({ ...EXAMPLE_4_CONTRACT, timing: null }), [
+    'With a first payment 45 days after signing: 5.800%',
+    'With a first payment a month after signing: 5.900%',
+  ]);
+  // SPEC §13: a 12-month loan whose first payment is 15 days after signing is past the 11 days shorter Reg Z allows.
+  const timing = firstPeriod('2026-10-30', '2026-11-14');
+  assertHasLines(aprMath(example1Contract({ aprMilli: 5900, paymentCents: 298835, paymentCount: 12, timing })), [
+    "With the contract's dates, 15 days to the first payment: 5.900%",
+    "Not with a first payment a month after signing: a first period of 15 days is outside Reg Z's limits.",
+  ]);
+});
+
 test('with no final payment, a total $5 off is a prompt, and the APR check uses the last payment the box implies', () => {
   // SPEC §13: $40,413.86 − 59 × $671.65 implies a last payment of $786.51, which works out to 5.900% with the dates.
   const cards = cardsWith({
     ...EXAMPLE_4_QUOTE,
     contract: { ...EXAMPLE_4_CONTRACT, totalOfPaymentsCents: 4041386, financeChargeCents: 558872 },
   });
-  assert.deepEqual(outcome(cards.contractPayments), ['neutral', "Total of payments isn't 60 × $671.65."]);
+  assert.deepEqual(verdictOf(cards.contractPayments), ['neutral', "Total of payments isn't 60 × $671.65."]);
   assert.equal(cards.contractPayments.sentence, 'If the last payment is different, enter it as Final payment.');
-  assert.deepEqual(outcome(cards.contractApr), ['green', "The APR matches the contract's numbers."]);
+  assert.deepEqual(verdictOf(cards.contractApr), ['green', "The APR matches the contract's numbers."]);
 });
 
 test('a hidden balloon payment fails the APR check, which gives the rate the payments work out to', () => {
@@ -172,12 +187,12 @@ test('a hidden balloon payment fails the APR check, which gives the rate the pay
     ...EXAMPLE_4_QUOTE,
     contract: { ...EXAMPLE_4_CONTRACT, totalOfPaymentsCents: 4500000, financeChargeCents: 1017486 },
   });
-  assert.deepEqual(outcome(contractApr), ['red', "The APR on the contract doesn't match its own numbers."]);
+  assert.deepEqual(verdictOf(contractApr), ['red', "The APR on the contract doesn't match its own numbers."]);
   assert.equal(contractApr.sentence, 'They work out to 9.44%.');
 });
 
 test('the total of payments matches within $5 with no final payment, and within $1 with one', () => {
-  const payments = (contract) => outcome(cardsWith({ contract }).contractPayments);
+  const payments = (contract) => verdictOf(cardsWith({ contract }).contractPayments);
   const matches = ['green', 'Total of payments matches the schedule.'];
   const notLevel = ['neutral', "Total of payments isn't 60 × $671.65."];
   const offSchedule = ['amber', "Total of payments doesn't match the payment schedule."];
@@ -219,10 +234,10 @@ test("a regular first month isn't allowed when the first period is further from 
   // first month they'd work out to 5.442%, but 15 days shorter is past the 11 days Reg Z allows.
   const contract = example1Contract({ paymentCents: 298835, paymentCount: 12, timing: firstPeriod('2026-10-30', '2026-11-14') });
   const low = cardsWith({ contract: { ...contract, aprMilli: 5440 } }).contractApr;
-  assert.deepEqual(outcome(low), ['red', "The APR on the contract doesn't match its own numbers."]);
+  assert.deepEqual(verdictOf(low), ['red', "The APR on the contract doesn't match its own numbers."]);
   assert.equal(low.sentence, 'They work out to 5.9%.');
   const right = cardsWith({ contract: { ...contract, aprMilli: 5900 } }).contractApr;
-  assert.deepEqual(outcome(right), ['green', "The APR matches the contract's numbers."]);
+  assert.deepEqual(verdictOf(right), ['green', "The APR matches the contract's numbers."]);
 });
 
 test("the regular timing is allowed without the dates, and with a first period inside Reg Z's limits", () => {
@@ -256,8 +271,8 @@ test('a contract matching a payment-only quote is green, with their payment in t
   const contract = example1Contract({ aprMilli: 7570, paymentCents: 69900, paymentCount: 60 });
   const deal = dealWith({ theirAprMilli: null, contract });
   const cards = byKey(contractCards(deal, reference));
-  assert.deepEqual(outcome(cards.contractVsQuote), ['green', 'The contract matches their quoted payment and term.']);
-  assert.deepEqual(outcome(cards.contractApr), ['green', "The APR matches the contract's numbers."]);
+  assert.deepEqual(verdictOf(cards.contractVsQuote), ['green', 'The contract matches their quoted payment and term.']);
+  assert.deepEqual(verdictOf(cards.contractApr), ['green', "The APR matches the contract's numbers."]);
   // Their payment's rate on this amount financed comes to at most $699.00, so the line is $700.00.
   const { payment } = quoteComparisons(deal, reference);
   assert.ok(payment.text.includes('$700.00'), payment.text);
@@ -267,7 +282,7 @@ test("a contract APR more than 0.125 points over their APR isn't the deal they q
   // $679.76 is 60 months of $34,825.14 at 6.4%, so the payment is over the 5.9% line as well.
   const contract = example1Contract({ aprMilli: 6400, paymentCents: 67976, paymentCount: 60 });
   const { contractVsQuote } = cardsWith({ contract });
-  assert.deepEqual(outcome(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
+  assert.deepEqual(verdictOf(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
   assert.ok(contractVsQuote.sentence.includes('APR 6.4% against 5.9% quoted.'), contractVsQuote.sentence);
 });
 
@@ -275,7 +290,7 @@ test("a contract with more payments than the months quoted isn't the deal they q
   // $575.51 is 72 months of $34,825.14 at 5.9%, so only the number of payments differs.
   const contract = example1Contract({ aprMilli: 5900, paymentCents: 57551, paymentCount: 72 });
   const { contractVsQuote } = cardsWith({ contract });
-  assert.deepEqual(outcome(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
+  assert.deepEqual(verdictOf(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
   assert.equal(contractVsQuote.sentence, '72 payments against 60 months quoted.');
 });
 
@@ -284,13 +299,13 @@ test('a contract with fewer payments than the months quoted is reported once, by
   // months quoted its line would be $674.30.
   const contract = example1Contract({ aprMilli: 5900, paymentCents: 81627, paymentCount: 48 });
   const { contractVsQuote } = cardsWith({ contract });
-  assert.deepEqual(outcome(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
+  assert.deepEqual(verdictOf(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
   assert.equal(contractVsQuote.sentence, '48 payments against 60 months quoted.');
 });
 
 test("a payment over what their rate gives on the contract's amount financed isn't the deal they quoted", () => {
   const { contractVsQuote } = cardsWith({ contract: { ...EXAMPLE_3_CONTRACT, paymentCents: 74500 } });
-  assert.deepEqual(outcome(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
+  assert.deepEqual(verdictOf(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
   assert.equal(contractVsQuote.sentence, '$745.00/mo, but 5.9% on this amount financed comes to at most $734.88.');
 });
 
@@ -309,13 +324,13 @@ test('a lower APR or payment is never a failure, and a higher one fails only pas
 test('a contract compared only on its number of payments is a note asking for their rate, not a pass', () => {
   // Without their APR or their payment, their rate is unknown.
   const { contractVsQuote } = cardsWith({ theirAprMilli: null, theirPaymentCents: null, contract: EXAMPLE_4_CONTRACT });
-  assert.deepEqual(outcome(contractVsQuote), ['neutral', 'Enter their rate to compare the contract with their quote.']);
+  assert.deepEqual(verdictOf(contractVsQuote), ['neutral', 'Enter their rate to compare the contract with their quote.']);
 });
 
 test("the quote note names each blank input the comparisons that didn't run need", () => {
   // Without their APR or months there's no rate to compare and no term.
   const noRateOrTerm = cardsWith({ theirAprMilli: null, months: null, contract: EXAMPLE_4_CONTRACT }).contractVsQuote;
-  assert.deepEqual(outcome(noRateOrTerm), [
+  assert.deepEqual(verdictOf(noRateOrTerm), [
     'neutral',
     'Enter their rate and months to compare the contract with their quote.',
   ]);
@@ -323,7 +338,7 @@ test("the quote note names each blank input the comparisons that didn't run need
   // the contract's APR.
   const paymentOnlyContract = { ...EXAMPLE_4_CONTRACT, aprMilli: null, paymentCount: null };
   const paymentOnly = cardsWith({ theirAprMilli: null, contract: paymentOnlyContract }).contractVsQuote;
-  assert.deepEqual(outcome(paymentOnly), [
+  assert.deepEqual(verdictOf(paymentOnly), [
     'neutral',
     "Enter the contract's number of payments to compare the contract with their quote.",
   ]);
@@ -366,7 +381,7 @@ test("card 17's math gives the APRs to 3 decimals, showing why a contract APR ju
     theirAprMilli: 5875,
     contract: { ...EXAMPLE_4_CONTRACT, aprMilli: 6001 },
   });
-  assert.deepEqual(outcome(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
+  assert.deepEqual(verdictOf(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
   assert.equal(contractVsQuote.sentence, 'APR 6% against 5.88% quoted.');
   assertHasLines(contractVsQuote.math, [
     'APR on the contract: 6.001%',
@@ -444,11 +459,11 @@ test("a finance charge more than $1 off the box's other numbers means the box do
   };
   // Example 4's box: $40,299.00 − $34,825.14 = $5,473.86.
   const offByTwo = box(547586);
-  assert.deepEqual(outcome(offByTwo), ['red', "The disclosure box doesn't add up."]);
+  assert.deepEqual(verdictOf(offByTwo), ['red', "The disclosure box doesn't add up."]);
   assert.equal(offByTwo.sentence, 'The finance charge should equal the total of payments minus the amount financed.');
-  assert.deepEqual(outcome(box(547486)), ['green', 'The disclosure box adds up.']);
-  assert.deepEqual(outcome(box(547286)), ['green', 'The disclosure box adds up.']);
-  assert.deepEqual(outcome(box(547186)), ['red', "The disclosure box doesn't add up."]);
+  assert.deepEqual(verdictOf(box(547486)), ['green', 'The disclosure box adds up.']);
+  assert.deepEqual(verdictOf(box(547286)), ['green', 'The disclosure box adds up.']);
+  assert.deepEqual(verdictOf(box(547186)), ['red', "The disclosure box doesn't add up."]);
 });
 
 test("an amount financed more than $1 off the deal's is reported, more as a problem and less as worth checking", () => {
@@ -456,23 +471,23 @@ test("an amount financed more than $1 off the deal's is reported, more as a prob
     cardsWith({ contract: { amountFinancedCents } }).contractAmountFinanced;
   // The deal adds up to $34,825.14.
   const fiveLow = amountFinanced(3482014);
-  assert.deepEqual(outcome(fiveLow), ['amber', '$5 less is financed than your deal adds up to.']);
+  assert.deepEqual(verdictOf(fiveLow), ['amber', '$5 less is financed than your deal adds up to.']);
   assert.equal(fiveLow.sentence, 'Check that the down payment, rebates and cash are what you agreed.');
-  assert.deepEqual(outcome(amountFinanced(3482414)), ['green', 'The amount financed matches your deal.']);
-  assert.deepEqual(outcome(amountFinanced(3482614)), ['green', 'The amount financed matches your deal.']);
-  assert.deepEqual(outcome(amountFinanced(3482615)), ['red', '$1 more is financed than your deal adds up to.']);
-  assert.deepEqual(outcome(amountFinanced(3482413)), ['amber', '$1 less is financed than your deal adds up to.']);
+  assert.deepEqual(verdictOf(amountFinanced(3482414)), ['green', 'The amount financed matches your deal.']);
+  assert.deepEqual(verdictOf(amountFinanced(3482614)), ['green', 'The amount financed matches your deal.']);
+  assert.deepEqual(verdictOf(amountFinanced(3482615)), ['red', '$1 more is financed than your deal adds up to.']);
+  assert.deepEqual(verdictOf(amountFinanced(3482413)), ['amber', '$1 less is financed than your deal adds up to.']);
 });
 
 test("a 0% contract whose payment isn't about the amount financed ÷ n doesn't add up as a 0% loan", () => {
   const { contractApr } = cardsWith({ ...EXAMPLE_2_QUOTE, contract: { ...EXAMPLE_2_CONTRACT, paymentCents: 98000 } });
-  assert.deepEqual(outcome(contractApr), ['red', "This doesn't add up as a 0% loan."]);
+  assert.deepEqual(verdictOf(contractApr), ['red', "This doesn't add up as a 0% loan."]);
   assert.equal(contractApr.sentence, 'A 0% loan has a $0 finance charge and a payment of about $967.37.');
 });
 
 test('a 0% APR passes with a payment within $1 of the amount financed ÷ n and a finance charge of at most $1', () => {
   const apr = (changes) =>
-    outcome(cardsWith({ ...EXAMPLE_2_QUOTE, contract: { ...EXAMPLE_2_CONTRACT, ...changes } }).contractApr);
+    verdictOf(cardsWith({ ...EXAMPLE_2_QUOTE, contract: { ...EXAMPLE_2_CONTRACT, ...changes } }).contractApr);
   const checksOut = ['green', 'The 0% checks out.'];
   const doesNotAddUp = ['red', "This doesn't add up as a 0% loan."];
   // $34,825.14 ÷ 36 is $967.37.
@@ -488,7 +503,7 @@ test('a 0% APR passes with a payment within $1 of the amount financed ÷ n and a
 test('a 0% contract also needs the finance charge to check its APR', () => {
   const contract = { ...EXAMPLE_2_CONTRACT, financeChargeCents: null };
   const { contractApr } = cardsWith({ ...EXAMPLE_2_QUOTE, contract });
-  assert.deepEqual(outcome(contractApr), ['neutral', "Enter the contract's finance charge to check the APR."]);
+  assert.deepEqual(verdictOf(contractApr), ['neutral', "Enter the contract's finance charge to check the APR."]);
 });
 
 test("the APR check says when the payments can't cover the amount financed, or work out to over 100%", () => {
@@ -497,11 +512,11 @@ test("the APR check says when the payments can't cover the amount financed, or w
   const mismatch = ['red', "The APR on the contract doesn't match its own numbers."];
   // 60 × $500.00 is $30,000.00, less than the $34,825.14 financed.
   const short = apr(50000);
-  assert.deepEqual(outcome(short), mismatch);
+  assert.deepEqual(verdictOf(short), mismatch);
   assert.equal(short.sentence, "The payments don't cover the amount financed.");
   // 60 × $10,000.00 is worth more than $34,825.14 even at 100%.
   const huge = apr(1000000);
-  assert.deepEqual(outcome(huge), mismatch);
+  assert.deepEqual(verdictOf(huge), mismatch);
   assert.equal(huge.sentence, 'They work out to over 100%.');
 });
 

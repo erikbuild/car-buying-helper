@@ -6,6 +6,7 @@ import { deskCards, hiddenAmountCents, rateCostCents, specialVsCash } from '../.
 import { connecticut } from '../../site/rules/connecticut.js';
 import { reference } from '../../site/rules/reference.js';
 import { assertWithin } from '../assertions.js';
+import { verdictOf } from '../cards.js';
 import { dealWith, extra } from '../fixtures.js';
 
 // The desk cards for Example 1's deal with `overrides` applied.
@@ -16,11 +17,6 @@ function cardsFor(overrides = {}) {
 // The card with `key` for Example 1's deal with `overrides` applied, or undefined when it's left off.
 function cardFor(key, overrides = {}) {
   return cardsFor(overrides).find((card) => card.key === key);
-}
-
-// A card's severity and headline.
-function verdictOf(card) {
-  return [card.severity, card.headline];
 }
 
 // Example 1's deal at 0% for 36 months, with their payment as given.
@@ -392,6 +388,24 @@ test("cards 3 and 4 give Reg Z's 0.125-point tolerance in full in their math", (
     const math = card.math.join('\n');
     assert.ok(math.includes('0.125 points'), math);
   }
+});
+
+test("cards 2–4 and 12 give a payment-only quote's rate in their math as 0.000% when it rounds down to 0", () => {
+  // SPEC §13: $967.37 × 36 on $34,825.14 works out to 0.000326%. A rate that shows as 0 reads without "at least"
+  // (§7.5), and "Show the math" shows rates to 3 decimals (§7.0).
+  const rateLine = (key, overrides) =>
+    cardFor(key, { theirAprMilli: null, months: 36, ...overrides }).math.find((line) => line.startsWith('Their rate:'));
+  const zero = 'Their rate: 0.000%, worked out from their payment';
+  assert.equal(rateLine('rateCap', { theirPaymentCents: 96737, contract: { aprMilli: 15500 } }), zero);
+  assert.equal(rateLine('specialRate', { theirPaymentCents: 96737 }), zero);
+  assert.equal(rateLine('outsideRate', { theirPaymentCents: 96737, specialAprMilli: null }), zero);
+  // With the warranty in the deal, 36 × $967.37 is less than the amount financed, so the rate is 0%.
+  assert.equal(rateLine('extras', { theirPaymentCents: 96737, extras: [WARRANTY_IN_DEAL] }), zero);
+  // $967.45 × 36 works out to 0.0055%, which shows as 0 to 2 decimals but not to 3.
+  assert.equal(
+    rateLine('specialRate', { theirPaymentCents: 96745 }),
+    'Their rate: at least 0.005%, worked out from their payment',
+  );
 });
 
 test('card 4 needs your outside rate, and its note adds the Experian line', () => {

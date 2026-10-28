@@ -14,6 +14,7 @@ import { formatCents, formatRatePercent } from '../../site/lib/numbers.js';
 import { connecticut } from '../../site/rules/connecticut.js';
 import { reference } from '../../site/rules/reference.js';
 import { assertWithin } from '../assertions.js';
+import { verdictOf } from '../cards.js';
 import { EXAMPLE_1_TEXT, typed } from '../fixtures.js';
 
 // The contract dates of Examples 2–4: the first payment 1 month and 15 days after signing.
@@ -70,11 +71,6 @@ function pageFor(form) {
   const deal = deriveDeal(inputs, connecticut);
   const cards = verdictCards(deal, connecticut, reference);
   return { deal, cards, strip: summaryStrip(deal, cards) };
-}
-
-// The cards as [severity, headline] pairs, in their order.
-function verdictsOf(cards) {
-  return cards.map((card) => [card.severity, card.headline]);
 }
 
 // The card with this key, which must be there.
@@ -149,7 +145,7 @@ test('Example 1: a padded payment on a standard-rate loan (§7.11)', () => {
   assert.deepEqual(specialOrCashFigures(deal), EXAMPLE_1_SPECIAL_OR_CASH);
   assert.equal(formatCents(deal.docFeeCostCents), '$743.39');
 
-  assert.deepEqual(verdictsOf(cards), EXAMPLE_1_VERDICTS);
+  assert.deepEqual(cards.map(verdictOf), EXAMPLE_1_VERDICTS);
   assert.equal(
     payment.sentence,
     'At 5.9% for 60 months it should be $671.65 to $673.30. Either the real rate is at least 7.44%, or at least '
@@ -191,7 +187,7 @@ test('Example 2: a clean 0% deal, with its contract (§7.11)', () => {
   // The Outside rate card is left off because the special rate applies.
   assert.equal(deal.specialApplies, true);
 
-  assert.deepEqual(verdictsOf(cards), [
+  assert.deepEqual(cards.map(verdictOf), [
     ['green', '$967.37/mo matches 36 months at 0%.'],
     ['green', "On the automaker's 0% special."],
     ['green', 'The 0% special beats the $1,000 cash by about $1,790.'],
@@ -232,7 +228,7 @@ test('Example 3: a packed contract (§7.11)', () => {
     'Total of payments: $43,984.80',
   ]);
 
-  assert.deepEqual(verdictsOf(cards), [
+  assert.deepEqual(cards.map(verdictOf), [
     ['red', "$699.00/mo doesn't add up."],
     ['red', '$3,185 more is financed than your deal adds up to.'],
     ['amber', "You're not getting the 0% special or the $1,000 cash."],
@@ -277,7 +273,7 @@ test('Example 4: an honest 5.9% deal (§7.11)', () => {
   assert.deepEqual([payment.ran, payment.failed], [true, false]);
   assert.ok(payment.text.includes('$674.30'), payment.text);
 
-  assert.deepEqual(verdictsOf(cards), [
+  assert.deepEqual(cards.map(verdictOf), [
     ['amber', "You're not getting the 0% special or the $1,000 cash."],
     ['amber', '0.4 points over your outside rate.'],
     ['green', '$671.65/mo matches 60 months at 5.9%.'],
@@ -315,7 +311,7 @@ test('Example 5: taking the cash (§7.11)', () => {
   assert.deepEqual(specialOrCashFigures(deal), EXAMPLE_1_SPECIAL_OR_CASH);
 
   // The Special rate card is left off because the cash is being taken.
-  assert.deepEqual(verdictsOf(cards), [
+  assert.deepEqual(cards.map(verdictOf), [
     ['amber', '0.4 points over your outside rate.'],
     ['green', '$652.36/mo matches 60 months at 5.9%.'],
     ['green', 'The 0% special beats the $1,000 cash by about $1,790.'],
@@ -343,7 +339,7 @@ test('Example 6: they quote only a payment (§7.11)', () => {
   // The payment at R, and what R costs against the outside rate.
   assertMathShows(cardWithKey(cards, 'outsideRate'), ['($696.84 − $665.20) × 60 = $1,898.40']);
 
-  assert.deepEqual(verdictsOf(cards), [
+  assert.deepEqual(cards.map(verdictOf), [
     ['amber', "You're not getting the 0% special or the $1,000 cash."],
     ['amber', 'At least 1.94 points over your outside rate.'],
     ['green', 'The 0% special beats the $1,000 cash by about $1,790.'],
@@ -373,7 +369,7 @@ test('Example 7: paying cash (§7.11)', () => {
   assert.equal(deal.isCashDeal, true);
 
   // Paying cash takes the place of cards 1–5.
-  assert.deepEqual(verdictsOf(cards), [
+  assert.deepEqual(cards.map(verdictOf), [
     ['green', '$699 doc fee.'],
     ['green', 'No extras in the deal.'],
     ['neutral', 'Paying cash: no loan to check.'],
@@ -409,7 +405,7 @@ test("Extras: the warranty and GAP, added to Example 1's deal but not in it (§7
   );
   assert.equal(extraLine(deal, 'extra-1'), 'Would add $61.43/mo, $3,685.80 over 60 months ($3,185.18 with tax)');
   // Extras out of the deal count toward nothing (§6.4), so the cards are Example 1's.
-  assert.deepEqual(verdictsOf(cards), EXAMPLE_1_VERDICTS);
+  assert.deepEqual(cards.map(verdictOf), EXAMPLE_1_VERDICTS);
 });
 
 test("Extras: the warranty in the deal makes the amount financed Example 3's and the Extras card amber (§7.11)", () => {
@@ -425,7 +421,7 @@ test("Extras: the warranty in the deal makes the amount financed Example 3's and
 
 test('an empty form shows only the start note, and the strip shows "—" (§6.1, §6.5)', () => {
   const { cards, strip } = pageFor(emptyForm());
-  assert.deepEqual(verdictsOf(cards), [['neutral', 'Enter their sale price on the Price tab to start.']]);
+  assert.deepEqual(cards.map(verdictOf), [['neutral', 'Enter their sale price on the Price tab to start.']]);
   assert.deepEqual(strip, { driveAway: '—', shouldBe: 'should be —', theirs: null, problems: '—' });
 });
 

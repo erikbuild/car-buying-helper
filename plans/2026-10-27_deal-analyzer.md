@@ -67,7 +67,7 @@ Every task uses these names and fields exactly as written.
 { inputs, price, hasSale, isCashDeal,
   deskTimings /*Timing[]*/, contractTiming /*Timing|null*/,
   theirAprPercent /*number|null*/, shouldBeCents, expected /*{lowCents,highCents}|null*/,
-  quoteCurrent /*boolean|null*/, workedOutRate /*{percent,zero,over100}|null*/,
+  quoteCurrent /*boolean|null*/, workedOutRate /*{percent,over100}|null*/,
   theirRate /*{percent, entered, over100}|null*/, specialApplies,
   docFeeCostCents, extras: [{ id, costCents, perMonthCents, overLoanCents }],
   extrasInDeal /*{costCents, perMonthCents, overLoanCents}|null*/ }
@@ -105,7 +105,7 @@ site/lib/deal.js           shared derived values                                
 site/lib/display.js        strip, tab lines, item lines, key numbers            Task 11
 site/lib/desk-checks.js    cards 1–12 and Paying cash                           Task 12
 site/lib/contract-checks.js cards 13–17                                         Task 13
-site/lib/checks.js         card order, start note, problem count                Task 14
+site/lib/checks.js         card order, start note                               Task 14
 tools/make-icons.js        draws the PNG icons                                  Task 1
 tools/stamp-release.js     writes the release name into offline.js              Task 18
 test/serve.js              static server for e2e (base path /car-buying-helper/) Task 1
@@ -234,6 +234,7 @@ Each wave starts after the one before it is committed. Tasks in the same wave to
   - `formatRateMilli(milli, decimals = 2)` and `formatRatePercent(percent, rounding = 'halfUp' | 'down', decimals = 2)`. Two decimals or fewer drops trailing zeros; 3 decimals stays fixed.
   - `formatPointsMilli(milli)` and `formatPointsPercent(points, rounding)` → `"0.4 points"`, `"1 point"`.
   - `formatAmountForField(cents)` → `"5,500"` or `"5,500.50"`.
+  - `MILLI_PER_PERCENT` (1000): entered rates are thousandths of a percent, so `milli / MILLI_PER_PERCENT` is the rate in percent.
 
 - [ ] **Step 1: Write the failing tests** (`test/unit/numbers.test.js`). Each line is an `assert.deepEqual` or `assert.equal`:
 
@@ -465,8 +466,8 @@ months '60.5' → errors.months 'Enter a whole number.'; contractPaymentCount '0
 ### Task 10: Deal (`site/lib/deal.js`)
 
 **Interfaces:**
-- Consumes: `priceOf`, `itemCostCents`, `docFeeCostCents`, `extrasInDealCostCents`; the loan module; `dealInputs`.
-- Produces: `deriveDeal(inputs, rules) → Deal`; `rateFromPayment(paymentCents, months, loanCents, timings) → {percent, zero, over100}`, R over the given timings (§7.5), which card 1 also uses.
+- Consumes: `priceOf`, `itemCostCents`, `docFeeCostCents`, `extrasInDealCostCents`; the loan module; Task 3's `MILLI_PER_PERCENT`; `dealInputs`.
+- Produces: `deriveDeal(inputs, rules) → Deal`; `rateFromPayment(paymentCents, months, loanCents, timings) → {percent, over100}`, R over the given timings (§7.5), which card 1 also uses.
   - `deskTimings` is `[REGULAR, FORTY_FIVE_DAY]`, plus `contract.timing` when it's set (§7.3).
   - `shouldBeCents` and `expected` need their APR, months, and a loan.
   - `quoteCurrent` is `theirPaymentCents != null ? downCents === quoteDownCents : null`.
@@ -483,7 +484,7 @@ contract.timing {m:0,d:20} → expected {lowCents:67055, highCents:67330}
 theirAprMilli null → workedOutRate.percent ≈ 7.4405, theirRate {entered:false}
 theirAprMilli 0, months 36 → specialApplies true; takingCash true → false
 downCents 550000 (quote 500000) → quoteCurrent false; with APR blank → workedOutRate null, theirRate null
-APR blank, months 36, theirPaymentCents 96737, AF 3482514 → workedOutRate {zero:true}
+APR blank, months 36, theirPaymentCents 96737, AF 3482514 → workedOutRate {over100:false}, percent just above 0
 APR blank, theirPaymentCents 699000 → workedOutRate {over100:true, percent:100}
 warranty added, not in deal → extras[0] {costCents:318518, perMonthCents:6143, overLoanCents:368580}; GAP 89500/1726/103560
 warranty in deal, downCents 4200000 → price AF 101032, extras[0].perMonthCents 1949
@@ -498,15 +499,25 @@ downCents 4000000 → isCashDeal true, shouldBeCents null, extras perMonthCents 
 ### Task 11: Display text (`site/lib/display.js`)
 
 **Interfaces:**
-- Consumes: Deal and Card shapes; Task 3's formatters; the rules' `tax.standardBp`, the service base's rate, which Price doesn't carry.
+- Consumes: Deal and Card shapes; Task 3's formatters and `MILLI_PER_PERCENT`; the rules' `tax.standardBp`, the service base's rate, which Price doesn't carry; `reference.regZ.aprToleranceMilli`.
 - Produces:
   - `summaryStrip(deal, cards) → {driveAway, shouldBe, theirs /*string|null*/, problems}` (§6.1).
   - `taxLine(price, rules) → string`, with one term per base in use.
   - `priceTabLines(deal, rules) → {discount, taxLine, dmv, driveAway, theirTaxCheck /*string|null*/, theirDriveAwayCheck /*string|null*/}`. Each check is null while their figure is blank.
-  - `workedOutRateText({percent, zero, over100}) → string`: R in §7.5's forms, "at least 7.44%", "0%" or "over 100%".
+  - `workedOutRateText({percent, over100}, decimals = 2) → string`: R rounded down to `decimals` in §7.5's forms, "at least 7.44%", "0%" when it shows as 0, or "over 100%". "Show the math" uses 3 decimals: "at least 7.440%", "0.000%".
+  - `theirRateText(deal) → string`: their rate as the cards word it (§6.5), their APR as entered, "5.9%", or R in `workedOutRateText`'s forms. It needs their rate to be known. Cards 2–4 use it, and the key numbers add ", from their payment" after R (§7.5).
   - `problemCount(cards) → integer`: the red and amber cards. It lives here because `checks.js` imports the card modules, which import this one.
   - `amountFinancedLine(deal)` and `extraLine(deal, extraId)` (§6.4).
   - `keyNumbers(deal) → [{label, value}]`.
+  - `MATCH_TOLERANCE_CENTS` (100): the $1 within which two amounts match (§5). The Price tab's checks and the card modules use it.
+  - `percentOfStickerText(amountCents, stickerCents) → string`: `"3.9%"`, half up to 1 decimal, multiplying by 100 before dividing so every tie rounds up. The Price tab's discount and card 7 use it.
+  - The card pieces both card modules use. They live here because both card modules import this module, and it imports neither:
+    - `card(key, number, {severity, headline, sentence, context = null, math}) → Card`.
+    - `missingInputNote(inputsText, purpose, sentence, math)` → the neutral outcome "Enter {inputsText} to {purpose}." (§6.5).
+    - `countOf(count, unit)` → "1 month", "60 months"; `listOf(names)` → "a", "a and b", "a, b and c".
+    - `TIMING_NAMES` → `{regular: 'a first payment a month after signing', fortyFiveDay: 'a first payment 45 days after signing', contractDates: "the contract's dates"}`, what "Show the math" calls each timing (§7.3); `DESK_TIMING_NAMES`, the same names in `deskTimings` order.
+    - `theirRateMathText(deal) → string`: their rate for "Show the math", to 3 decimals (§7.0). Their APR, "5.900%", or R rounded down with ", worked out from their payment" after it: "at least 7.440%", "0.000%" when R rounds down to 0 at 3 decimals, or "over 100%". "unknown" while their rate is unknown.
+    - `aprTolerancePointsText(reference)` → "0.125 points", Reg Z's APR tolerance in full.
 
 - [ ] **Step 1: Write the failing tests** (`test/unit/display.test.js`). Cards in these tests are plain objects such as `{severity:'red'}`.
 
@@ -532,7 +543,8 @@ keyNumbers(APR blank) includes {label:'Their rate', value:'at least 7.44%, from 
 ### Task 12: Desk cards (`site/lib/desk-checks.js`)
 
 **Interfaces:**
-- Consumes: Deal; `taxLine(price, rules)`, and `workedOutRateText` for card 1's rate wording; `rateFromPayment(paymentCents, months, loanCents, timings) → {percent, zero, over100}`, which `deal.js` exports and uses for `workedOutRate`, for R in card 1's outcome 5, where their APR is entered and `workedOutRate` is null; `connecticut`, `reference`; the loan module.
+- Consumes: Deal; `taxLine(price, rules)`, `workedOutRateText` for card 1's rate wording, and `theirRateText` for their rate in cards 2–4; `rateFromPayment(paymentCents, months, loanCents, timings) → {percent, over100}`, which `deal.js` exports and uses for `workedOutRate`, for R in card 1's outcome 5, where their APR is entered and `workedOutRate` is null; `connecticut`, `reference`; the loan module.
+  - Task 11's card pieces: `card`, `missingInputNote`, `countOf`, `listOf`, `MATCH_TOLERANCE_CENTS`, `TIMING_NAMES`, `DESK_TIMING_NAMES`, `theirRateMathText`, `aprTolerancePointsText`, and `percentOfStickerText` for card 7; Task 3's `MILLI_PER_PERCENT`.
 - Produces:
   - `deskCards(deal, rules, reference) → Card[]`, in card-number order. It returns cards 1–12 when it's a loan, and Paying cash in place of 1–5 in a cash deal.
   - `hiddenAmountCents(deal)` (E, §7.5).
@@ -583,6 +595,7 @@ down 4000000 → [payingCash, docFee, extras] (card-number order; Task 14 sorts 
 
 **Interfaces:**
 - Consumes: Deal; `reference.regZ`; the loan module.
+  - Task 11's card pieces: `card`, `missingInputNote`, `countOf`, `listOf`, `MATCH_TOLERANCE_CENTS`, `TIMING_NAMES` for card 16, `DESK_TIMING_NAMES` for card 17, `theirRateMathText` and `aprTolerancePointsText`; Task 3's `MILLI_PER_PERCENT`.
 - Produces:
   - `contractCards(deal, reference) → Card[]`. It returns `[]` unless a contract field other than the dates is entered, or when it's a cash deal.
   - `contractSchedule(contract) → number[] | null`. It uses the implied final payment when the final payment is blank and the total doesn't match (§7.10). With a final payment, entered or implied, the schedule is `levelPayments(payment, count − 1, final)`; without one, `levelPayments(payment, count)`.
@@ -618,7 +631,7 @@ only contractDate and firstPaymentDate entered → []
 **Files:** Create `site/lib/checks.js`, `test/unit/checks.test.js`, `test/integration/examples.test.js`
 
 **Interfaces:**
-- Consumes: `deskCards`, `contractCards`, `readInputs`, `deriveDeal`, `summaryStrip`, `priceTabLines`, `problemCount`, `emptyForm`, `editField`, `setTakingCash`, `addExtra`, `editExtra`.
+- Consumes: `deskCards`, `contractCards`, `readInputs`, `deriveDeal`, `summaryStrip`, `priceTabLines`, `problemCount`, `card` for the start card, `emptyForm`, `editField`, `setTakingCash`, `addExtra`, `editExtra`.
 - Produces:
   - `verdictCards(deal, rules, reference) → Card[]`. Order: red, amber, green, neutral, then card number. With no sale price, it returns only the start card: neutral, headline "Enter their sale price on the Price tab to start."
 

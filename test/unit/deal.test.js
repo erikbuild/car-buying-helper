@@ -53,7 +53,6 @@ test("with their APR blank, their rate is R, the smallest of the desk timings' r
   const deal = dealWith({ theirAprMilli: null });
   // R is 7.571% with the regular timing and 7.4405% with a 45-day first payment (§7.11).
   assertWithin(deal.workedOutRate.percent, 7.4405, 0.0001);
-  assert.equal(deal.workedOutRate.zero, false);
   assert.equal(deal.workedOutRate.over100, false);
   assert.deepEqual(deal.theirRate, { percent: deal.workedOutRate.percent, entered: false, over100: false });
   assert.equal(deal.theirAprPercent, null);
@@ -78,17 +77,16 @@ test("R comes from the timings that reach their payment at 100% or less when oth
 
 test('a payment worth more than the amount financed even at 100% is over 100%, and counts as 100%', () => {
   const deal = dealWith({ theirAprMilli: null, theirPaymentCents: 699000 });
-  assert.deepEqual(deal.workedOutRate, { percent: 100, zero: false, over100: true });
+  assert.deepEqual(deal.workedOutRate, { percent: 100, over100: true });
   assert.deepEqual(deal.theirRate, { percent: 100, entered: false, over100: true });
 });
 
-test('R shows as 0 when it rounds down to 0, and is 0% when the payments total at most the amount financed', () => {
+test('R is just above 0% when the payments total a little more than the amount financed, and 0% when at most it', () => {
   // 36 × $967.37 is 18 cents more than $34,825.14, so R is just above 0%.
   const justAbove = dealWith({ theirAprMilli: null, months: 36, theirPaymentCents: 96737 }).workedOutRate;
-  assert.equal(justAbove.zero, true);
   assert.equal(justAbove.over100, false);
   assert.ok(justAbove.percent > 0 && justAbove.percent < 0.001, `${justAbove.percent}% should be just above 0%`);
-  const zero = { percent: 0, zero: true, over100: false };
+  const zero = { percent: 0, over100: false };
   assert.deepEqual(dealWith({ theirAprMilli: null, months: 36, theirPaymentCents: 96736 }).workedOutRate, zero);
   // 6 × $5,804.19 is exactly $34,825.14.
   assert.deepEqual(dealWith({ theirAprMilli: null, months: 6, theirPaymentCents: 580419 }).workedOutRate, zero);

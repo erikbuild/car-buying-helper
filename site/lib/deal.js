@@ -1,6 +1,7 @@
 // ABOUTME: Derives the values the Verdict checks share from the parsed inputs.
 // ABOUTME: Covers the expected payment range, the rate worked out from a payment and what each extra adds.
 import { FORTY_FIVE_DAY, HIGHEST_RATE_PERCENT, REGULAR, levelPayments, monthlyPayment, solveRate } from './loan.js';
+import { MILLI_PER_PERCENT } from './numbers.js';
 import { docFeeCostCents, extrasInDealCostCents, itemCostCents, priceOf } from './price.js';
 
 // Works out the values the cards, the summary strip and the tabs share from the parsed inputs (SPEC §7.3–§7.7). A
@@ -14,7 +15,7 @@ export function deriveDeal(inputs, rules) {
   const contractTiming = inputs.contract.timing;
   const deskTimings = contractTiming === null ? [REGULAR, FORTY_FIVE_DAY] : [REGULAR, FORTY_FIVE_DAY, contractTiming];
   // Entered rates are thousandths of a percent: 5900 is 5.9%.
-  const theirAprPercent = inputs.theirAprMilli === null ? null : inputs.theirAprMilli / 1000;
+  const theirAprPercent = inputs.theirAprMilli === null ? null : inputs.theirAprMilli / MILLI_PER_PERCENT;
   const { shouldBeCents, expected } = paymentsAtTheirApr(loanCents, theirAprPercent, months, deskTimings);
   // Their payment is tied to the down payment it was quoted at (SPEC §6.3).
   const quoteCurrent = inputs.theirPaymentCents === null ? null : inputs.downCents === inputs.quoteDownCents;
@@ -67,10 +68,9 @@ function paymentsAtTheirApr(loanCents, theirAprPercent, months, deskTimings) {
 // Works out R, the rate at which their payment for each of the months pays off the amount financed (SPEC §7.5). It's
 // the smallest result over the timings, so it's never overstated, and 0% when the payments add up to no more than the
 // amount financed. When they're worth more than it even at 100% with every timing, R is over 100% and counts as 100%.
-// zero says R shows as 0, which is when rounding it down to 2 decimals leaves 0 (SPEC §7.0).
 export function rateFromPayment(paymentCents, months, loanCents, timings) {
   if (paymentCents * months <= loanCents) {
-    return { percent: 0, zero: true, over100: false };
+    return { percent: 0, over100: false };
   }
   // The payments add up to more than the amount financed, so each timing gives a rate or is over 100%.
   const payments = levelPayments(paymentCents, months);
@@ -80,10 +80,10 @@ export function rateFromPayment(paymentCents, months, loanCents, timings) {
     .map((result) => result.percent);
   // A rate worked out as over the top of the range counts as the top (SPEC §7.5).
   if (percents.length === 0) {
-    return { percent: HIGHEST_RATE_PERCENT, zero: false, over100: true };
+    return { percent: HIGHEST_RATE_PERCENT, over100: true };
   }
   const percent = Math.min(...percents);
-  return { percent, zero: Math.floor(percent * 100) === 0, over100: false };
+  return { percent, over100: false };
 }
 
 // Their rate, which cards 2–4 and 17 and the extras' figures use (SPEC §7.5): their APR when it's entered, otherwise R

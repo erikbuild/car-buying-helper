@@ -1,6 +1,8 @@
 // ABOUTME: Parses and formats money amounts and interest rates.
 // ABOUTME: Money is whole cents, rounded with exact half-up integer division.
 
+// Entered rates are thousandths of a percent: 5900 is 5.9%.
+export const MILLI_PER_PERCENT = 1000;
 const MAX_AMOUNT_CENTS = 50000000; // $500,000
 const MAX_RATE_MILLI = 30000; // 30%
 const MINUS_SIGN = '−';

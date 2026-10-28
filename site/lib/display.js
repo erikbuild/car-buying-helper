@@ -1,13 +1,27 @@
 // ABOUTME: Writes the text for the summary strip, the Price tab lines, the extras and the key numbers.
-// ABOUTME: Shows "—" wherever a value can't be worked out yet.
-import { formatCents, formatDollars, formatRateMilli, formatRatePercent } from './numbers.js';
+// ABOUTME: Also builds the card pieces both card modules use. Shows "—" wherever a value can't be worked out yet.
+import { MILLI_PER_PERCENT, formatCents, formatDollars, formatRateMilli, formatRatePercent } from './numbers.js';
 
 // Shown wherever a value can't be worked out yet (SPEC §6.1).
 const MISSING_VALUE = '—';
 // Shown in place of the loan's figures when the down payment covers the drive-away total (SPEC §6.1, §7.2).
 const PAYING_CASH = 'Paying cash';
-// A figure from their sheet matches the page's when it's within this much of it (SPEC §5).
-const MATCH_TOLERANCE_CENTS = 100;
+// Two amounts match when they're within this much of each other (SPEC §5): payments, prices, tax, totals and the
+// finance charge, and a figure from their sheet against the page's.
+export const MATCH_TOLERANCE_CENTS = 100;
+// What "Show the math" calls each first-payment timing (SPEC §7.3).
+export const TIMING_NAMES = Object.freeze({
+  regular: 'a first payment a month after signing',
+  fortyFiveDay: 'a first payment 45 days after signing',
+  contractDates: "the contract's dates",
+});
+// The desk timings' names, in the order the Deal lists the timings: the regular timing, the 45-day timing, then the
+// contract dates' timing when they're entered (SPEC §7.3).
+export const DESK_TIMING_NAMES = Object.freeze([
+  TIMING_NAMES.regular,
+  TIMING_NAMES.fortyFiveDay,
+  TIMING_NAMES.contractDates,
+]);
 
 // The summary strip's slots (SPEC §6.1): the drive-away total in whole dollars, the should-be payment, their payment
 // (null when there's none to show) and the number of problems, which are the red and amber cards. The drive-away total
@@ -46,7 +60,7 @@ function problemsText(cards) {
   if (count === 0) {
     return 'No problems';
   }
-  return count === 1 ? '1 problem' : `${count} problems`;
+  return countOf(count, 'problem');
 }
 
 // The number of problems: the red and amber cards (SPEC §6.1).
@@ -96,10 +110,15 @@ function discountText({ stickerCents, saleCents }) {
     return MISSING_VALUE;
   }
   const distanceCents = Math.abs(stickerCents - saleCents);
-  // Multiplying by 100 before dividing rounds every 1-decimal tie up; dividing first rounds some of them down.
-  const percent = formatRatePercent((distanceCents * 100) / stickerCents, 'halfUp', 1);
+  const percent = percentOfStickerText(distanceCents, stickerCents);
   const direction = saleCents > stickerCents ? 'above' : 'off';
   return `${formatCents(distanceCents)} ${direction} the sticker (${percent})`;
+}
+
+// An amount as a percent of the window sticker, rounded half up to 1 decimal: "3.9%". Needs a sticker above $0.
+export function percentOfStickerText(amountCents, stickerCents) {
+  // Multiplying by 100 before dividing rounds every 1-decimal tie up; dividing first rounds some of them down.
+  return formatRatePercent((amountCents * 100) / stickerCents, 'halfUp', 1);
 }
 
 // The DMV fees, marked "(estimated)" when title + registration is blank and the state's amount is used (SPEC §6.2).
@@ -149,13 +168,8 @@ export function extraLine(deal, extraId) {
   if (perMonthCents === null) {
     return `${adds} ${cost}`;
   }
-  const overLoan = `${formatCents(overLoanCents)} over ${monthsText(deal.inputs.months)}`;
+  const overLoan = `${formatCents(overLoanCents)} over ${countOf(deal.inputs.months, 'month')}`;
   return `${adds} ${formatCents(perMonthCents)}/mo, ${overLoan} (${cost})`;
-}
-
-// A number of months, with 1 in the singular: "60 months", "1 month" (SPEC §6.5).
-function monthsText(months) {
-  return months === 1 ? '1 month' : `${months} months`;
 }
 
 // The key numbers at the top of the Verdict tab, as {label, value} rows (SPEC §6.5): their sale price, the drive-away
@@ -177,7 +191,7 @@ export function keyNumbers(deal) {
   return [
     ...prices,
     { label: 'Amount financed', value: formatDollars(price.amountFinancedCents) },
-    { label: 'Their rate', value: theirRateText(deal) },
+    { label: 'Their rate', value: keyRateText(deal) },
     { label: 'Months', value: inputs.months === null ? MISSING_VALUE : String(inputs.months) },
     { label: 'Payment', value: paymentsText(deal) },
   ];
@@ -185,30 +199,73 @@ export function keyNumbers(deal) {
 
 // Their APR as entered, or else the rate worked out from their payment, followed by ", from their payment"
 // (SPEC §6.5, §7.5). "—" while their rate is unknown.
-function theirRateText(deal) {
-  if (deal.inputs.theirAprMilli !== null) {
-    return formatRateMilli(deal.inputs.theirAprMilli);
-  }
-  if (deal.workedOutRate === null) {
+function keyRateText(deal) {
+  if (deal.theirRate === null) {
     return MISSING_VALUE;
   }
-  return `${workedOutRateText(deal.workedOutRate)}, from their payment`;
+  if (deal.theirRate.entered) {
+    return theirRateText(deal);
+  }
+  return `${theirRateText(deal)}, from their payment`;
 }
 
-// R, the rate worked out from their payment, rounded down (SPEC §7.0, §7.5): "at least 7.44%", or "0%" when it shows
-// as 0, or "over 100%".
-export function workedOutRateText({ percent, zero, over100 }) {
+// Their rate as the cards word it (SPEC §6.5): their APR, "5.9%", or the rate worked out from their payment,
+// "at least 7.44%". Needs their rate to be known.
+export function theirRateText(deal) {
+  return deal.theirRate.entered ? formatRateMilli(deal.inputs.theirAprMilli) : workedOutRateText(deal.workedOutRate);
+}
+
+// R, the rate worked out from their payment, rounded down to `decimals` (SPEC §7.0, §7.5): "at least 7.44%", or "0%"
+// without "at least" when it shows as 0, or "over 100%". "Show the math" gives it to 3 decimals: "at least 7.440%",
+// "0.000%".
+export function workedOutRateText({ percent, over100 }, decimals = 2) {
   if (over100) {
     return 'over 100%';
   }
-  if (zero) {
-    return '0%';
-  }
-  return `at least ${formatRatePercent(percent, 'down')}`;
+  const rate = formatRatePercent(percent, 'down', decimals);
+  return rate === formatRatePercent(0, 'down', decimals) ? rate : `at least ${rate}`;
 }
 
 // The should-be payment and theirs, as the strip shows them: "should be $671.65, theirs $699.00".
 function paymentsText(deal) {
   const theirs = theirsText(deal);
   return theirs === null ? shouldBeText(deal) : `${shouldBeText(deal)}, ${theirs}`;
+}
+
+// A Verdict card from the outcome of its check. An outcome without a context line has null for it.
+export function card(key, number, { severity, headline, sentence, context = null, math }) {
+  return { key, number, severity, headline, sentence, context, math };
+}
+
+// A neutral note asking for the blank inputs a card needs, which inputsText names (SPEC §6.5): "Enter months to check
+// their payment."
+export function missingInputNote(inputsText, purpose, sentence, math) {
+  return { severity: 'neutral', headline: `Enter ${inputsText} to ${purpose}.`, sentence, math };
+}
+
+// Names joined into a list: "a", "a and b", "a, b and c".
+export function listOf(names) {
+  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+}
+
+// A count with its unit, in the singular for 1 (SPEC §6.5): "1 month", "60 months".
+export function countOf(count, unit) {
+  return count === 1 ? `1 ${unit}` : `${count} ${unit}s`;
+}
+
+// Their rate for "Show the math", to 3 decimals (SPEC §7.0): their APR, or the rate worked out from their payment,
+// rounded down, or "unknown" while their rate is unknown.
+export function theirRateMathText({ inputs, theirRate }) {
+  if (theirRate === null) {
+    return 'unknown';
+  }
+  if (theirRate.entered) {
+    return formatRateMilli(inputs.theirAprMilli, 3);
+  }
+  return `${workedOutRateText(theirRate, 3)}, worked out from their payment`;
+}
+
+// Reg Z's APR tolerance in full, for "Show the math": "0.125 points".
+export function aprTolerancePointsText(reference) {
+  return `${reference.regZ.aprToleranceMilli / MILLI_PER_PERCENT} points`;
 }

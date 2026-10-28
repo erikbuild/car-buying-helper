@@ -1,9 +1,24 @@
 // ABOUTME: Builds Verdict cards 1–12, which check the numbers quoted at the sales desk.
 // ABOUTME: In a cash deal, a Paying cash note replaces the payment and rate cards.
 import { rateFromPayment } from './deal.js';
-import { taxLine, workedOutRateText } from './display.js';
+import {
+  DESK_TIMING_NAMES,
+  MATCH_TOLERANCE_CENTS,
+  TIMING_NAMES,
+  aprTolerancePointsText,
+  card,
+  countOf,
+  listOf,
+  missingInputNote,
+  percentOfStickerText,
+  taxLine,
+  theirRateMathText,
+  theirRateText,
+  workedOutRateText,
+} from './display.js';
 import { HIGHEST_RATE_PERCENT, REGULAR, levelPayments, monthlyPayment, presentValue, solveRate } from './loan.js';
 import {
+  MILLI_PER_PERCENT,
   formatAbout,
   formatCents,
   formatDollars,
@@ -16,23 +31,12 @@ import {
 } from './numbers.js';
 import { priceOf } from './price.js';
 
-// Payments, prices, tax and totals match within this much (SPEC §5).
-const MATCH_TOLERANCE_CENTS = 100;
 const CENTS_PER_DOLLAR = 100;
-// Entered rates are thousandths of a percent: 5900 is 5.9%.
-const MILLI_PER_PERCENT = 1000;
-// What "Show the math" calls each desk timing, in the order the Deal lists them: the regular timing, the 45-day timing,
-// then the contract dates' timing when they're entered (SPEC §7.3).
-const DESK_TIMING_NAMES = [
-  'a first payment a month after signing',
-  'a first payment 45 days after signing',
-  "the contract's dates",
-];
 // How the notes name the longest term the special rate covers, after its field.
 const COVERS_LOANS_UP_TO = '"covers loans up to"';
 // The monthly payment formula, as "Show the math" gives it (SPEC §7.4).
-const PAYMENT_FORMULA = 'Payment = amount financed × i ÷ (1 − (1 + i)^−n), with i = APR ÷ 12 and n = months, for a '
-  + 'first payment a month after signing. Other first-payment dates add or take off interest for the odd days '
+const PAYMENT_FORMULA = 'Payment = amount financed × i ÷ (1 − (1 + i)^−n), with i = APR ÷ 12 and n = months, for '
+  + `${TIMING_NAMES.regular}. Other first-payment dates add or take off interest for the odd days `
   + '(Reg Z Appendix J).';
 
 // Verdict cards 1–12, in number order (SPEC §6.5). A card is left off when what it checks isn't entered. In a cash deal
@@ -170,26 +174,6 @@ function theirRateIsAbove(deal, limitMilli) {
   return deal.theirRate.percent > limitMilli / MILLI_PER_PERCENT;
 }
 
-// Their rate as the cards word it (SPEC §6.5): their APR, "5.9%", or the rate worked out from their payment,
-// "at least 7.44%".
-function theirRateText(deal) {
-  return deal.theirRate.entered ? formatRateMilli(deal.inputs.theirAprMilli) : workedOutRateText(deal.workedOutRate);
-}
-
-// Their rate for "Show the math", to 3 decimals: their APR, or the rate worked out from their payment, rounded down
-// (SPEC §7.0), or "unknown".
-function theirRateMathText(deal) {
-  const { theirRate } = deal;
-  if (theirRate === null) {
-    return 'unknown';
-  }
-  if (theirRate.entered) {
-    return formatRateMilli(deal.inputs.theirAprMilli, 3);
-  }
-  const rate = theirRate.over100 ? 'over 100%' : `at least ${formatRatePercent(theirRate.percent, 'down', 3)}`;
-  return `${rate}, worked out from their payment`;
-}
-
 // Card 1, Payment adds up (SPEC §6.5, §7.4, §7.5). Shows when their payment is entered.
 function paymentCard(deal) {
   if (deal.inputs.theirPaymentCents === null) {
@@ -211,7 +195,7 @@ function paymentOutcome(deal) {
       `Their payment: ${formatCents(theirPaymentCents)}`,
       PAYMENT_FORMULA,
     ];
-    return missingInputNote(['months'], 'check their payment', sentence, math);
+    return missingInputNote('months', 'check their payment', sentence, math);
   }
   if (!deal.quoteCurrent) {
     return outOfDateQuoteOutcome(deal);
@@ -281,7 +265,7 @@ function outOfDateQuoteOutcome(deal) {
       `Amount financed: ${formatCents(deal.price.amountFinancedCents)}`,
       `Their APR: ${formatRateMilli(theirAprMilli, 3)} for ${countOf(deal.inputs.months, 'month')}`,
       PAYMENT_FORMULA,
-      `With ${DESK_TIMING_NAMES[0]}: ${shouldBe}`,
+      `With ${TIMING_NAMES.regular}: ${shouldBe}`,
     ],
   };
 }
@@ -444,13 +428,13 @@ function specialRateOutcome(deal, reference) {
   if (blank.length > 0) {
     const sentence = 'The special applies only to loans up to the length it covers.';
     const math = [termsLine, `Months: ${months === null ? 'blank' : months}`];
-    return missingInputNote(blank, `check their rate against the ${special} special`, sentence, math);
+    return missingInputNote(listOf(blank), `check their rate against the ${special} special`, sentence, math);
   }
   const math = [
     termsLine,
     `Months: ${months}`,
     `Their rate: ${theirRateMathText(deal)}`,
-    `Within ${tolerancePointsText(reference)} of the special counts as the special (Reg Z's APR tolerance).`,
+    `Within ${aprTolerancePointsText(reference)} of the special counts as the special (Reg Z's APR tolerance).`,
   ];
   if (deal.theirRate !== null && !theirRateIsAbove(deal, specialAprMilli + toleranceMilli)) {
     return {
@@ -479,12 +463,8 @@ function specialRateOutcome(deal, reference) {
     };
   }
   if (deal.theirRate === null) {
-    return {
-      severity: 'neutral',
-      headline: `Enter their rate to check it against the ${special} special.`,
-      sentence: `The special covers your ${months}-month loan.`,
-      math,
-    };
+    const sentence = `The special covers your ${months}-month loan.`;
+    return missingInputNote('their rate', `check it against the ${special} special`, sentence, math);
   }
   const specialPercent = specialAprMilli / MILLI_PER_PERCENT;
   const costCents = rateCostCents(deal, specialPercent);
@@ -500,17 +480,12 @@ function specialRateOutcome(deal, reference) {
   };
 }
 
-// Reg Z's APR tolerance in full, for "Show the math": "0.125 points".
-function tolerancePointsText(reference) {
-  return `${reference.regZ.aprToleranceMilli / MILLI_PER_PERCENT} points`;
-}
-
 // "Show the math" for the rate cost against a benchmark rate (SPEC §7.8).
 function rateCostLines(deal, benchmarkPercent, benchmarkName) {
   const { theirsCents, benchmarkCents } = rateCostPayments(deal, benchmarkPercent);
   return [
     `Payment at their rate: ${formatCents(theirsCents)}. At ${benchmarkName}: ${formatCents(benchmarkCents)}. Both `
-      + `with ${DESK_TIMING_NAMES[0]}.`,
+      + `with ${TIMING_NAMES.regular}.`,
     `Cost = (${formatCents(theirsCents)} − ${formatCents(benchmarkCents)}) × ${deal.inputs.months} = `
       + formatCents(rateCostCents(deal, benchmarkPercent)),
   ];
@@ -546,7 +521,7 @@ function outsideRateOutcome(deal, reference) {
       `Months: ${months === null ? 'blank' : months}`,
     ];
     return {
-      ...missingInputNote(blank, 'compare their loan with your own financing', sentence, math),
+      ...missingInputNote(listOf(blank), 'compare their loan with your own financing', sentence, math),
       context: reference.experian.text,
     };
   }
@@ -557,7 +532,7 @@ function outsideRateOutcome(deal, reference) {
     `Their rate: ${theirRateMathText(deal)}`,
     outsideLine,
     ...rateCostLines(deal, outsidePercent, 'your outside rate'),
-    `Up to ${tolerancePointsText(reference)} over counts as at or under (Reg Z's APR tolerance).`,
+    `Up to ${aprTolerancePointsText(reference)} over counts as at or under (Reg Z's APR tolerance).`,
   ];
   if (!theirRateIsAbove(deal, outsideAprMilli + toleranceMilli)) {
     return {
@@ -612,7 +587,7 @@ function specialOrCashOutcome(deal, rules) {
       `The special: ${formatRateMilli(specialAprMilli, 3)}`,
       `The cash instead: ${formatCents(cashInsteadCents)}`,
     ];
-    return missingInputNote(['months'], 'compare the special rate with the cash', sentence, math);
+    return missingInputNote('months', 'compare the special rate with the cash', sentence, math);
   }
   const comparison = specialVsCash(deal, rules);
   const math = specialOrCashMath(deal, comparison);
@@ -732,8 +707,7 @@ function stickerCard(deal, reference) {
     return card('sticker', 7, { severity: 'green', headline: 'At sticker.', sentence, context, math });
   }
   const discountCents = -differenceCents;
-  // Multiplying by 100 before dividing rounds every 1-decimal tie up; dividing first rounds some of them down.
-  const percent = formatRatePercent((discountCents * 100) / stickerCents, 'halfUp', 1);
+  const percent = percentOfStickerText(discountCents, stickerCents);
   const headline = `${formatDollars(discountCents)} (${percent}) under sticker.`;
   return card('sticker', 7, { severity: 'green', headline, sentence, context, math });
 }
@@ -930,27 +904,7 @@ function payingCashCard(deal) {
   });
 }
 
-// A Verdict card from the outcome of its check. An outcome without a context line has null for it.
-function card(key, number, { severity, headline, sentence, context = null, math }) {
-  return { key, number, severity, headline, sentence, context, math };
-}
-
-// A neutral note asking for the blank inputs a card needs (SPEC §6.5): "Enter months to check their payment."
-function missingInputNote(names, purpose, sentence, math) {
-  return { severity: 'neutral', headline: `Enter ${listOf(names)} to ${purpose}.`, sentence, math };
-}
-
 // The names of the inputs that are blank, from [name, value] pairs, in the order given.
 function blankNames(namedValues) {
   return namedValues.filter(([, value]) => value === null).map(([name]) => name);
-}
-
-// Names joined into a list: "a", "a and b", "a, b and c".
-function listOf(names) {
-  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
-}
-
-// A count with its unit, in the singular for 1 (SPEC §6.5): "1 month", "60 months".
-function countOf(count, unit) {
-  return count === 1 ? `1 ${unit}` : `${count} ${unit}s`;
 }

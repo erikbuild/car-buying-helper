@@ -1,18 +1,30 @@
-// ABOUTME: Checks the summary strip, the Price tab lines, the amount financed, the extra lines and the key numbers.
-// ABOUTME: Deals start from SPEC.md §7.11's Example 1; cards here are plain objects that hold only a severity.
+// ABOUTME: Checks the strip, Price tab lines, amount financed, extra lines, key numbers and the cards' shared pieces.
+// ABOUTME: Deals start from SPEC.md §7.11's Example 1; the strip's cards are plain objects that hold only a severity.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  DESK_TIMING_NAMES,
+  MATCH_TOLERANCE_CENTS,
+  TIMING_NAMES,
   amountFinancedLine,
+  aprTolerancePointsText,
+  card,
+  countOf,
   extraLine,
   keyNumbers,
+  listOf,
+  missingInputNote,
+  percentOfStickerText,
   priceTabLines,
   problemCount,
   summaryStrip,
   taxLine,
+  theirRateMathText,
+  theirRateText,
   workedOutRateText,
 } from '../../site/lib/display.js';
 import { connecticut } from '../../site/rules/connecticut.js';
+import { reference } from '../../site/rules/reference.js';
 import { dealWith, extra } from '../fixtures.js';
 
 // Cards with the given severities, which is all the strip reads from them.
@@ -207,12 +219,31 @@ test('a worked-out rate that shows as 0, or is over 100%, reads "0%" or "over 10
   assert.equal(keyNumber(overHundred, 'Their rate'), 'over 100%, from their payment');
 });
 
+test('the cards give their rate as their APR, or as the rate worked out from their payment (SPEC §6.5, §7.5)', () => {
+  assert.equal(theirRateText(dealWith()), '5.9%');
+  assert.equal(theirRateText(dealWith({ theirAprMilli: 0 })), '0%');
+  assert.equal(theirRateText(dealWith({ theirAprMilli: null })), 'at least 7.44%');
+  assert.equal(theirRateText(dealWith({ theirAprMilli: null, months: 36, theirPaymentCents: 96737 })), '0%');
+  assert.equal(theirRateText(dealWith({ theirAprMilli: null, theirPaymentCents: 699000 })), 'over 100%');
+});
+
 test('workedOutRateText rounds R down and words it in the forms §7.5 gives', () => {
-  assert.equal(workedOutRateText({ percent: 7.440472, zero: false, over100: false }), 'at least 7.44%');
+  assert.equal(workedOutRateText({ percent: 7.440472, over100: false }), 'at least 7.44%');
   // Half up would give 7.45%, which overstates R.
-  assert.equal(workedOutRateText({ percent: 7.449, zero: false, over100: false }), 'at least 7.44%');
-  assert.equal(workedOutRateText({ percent: 0.000326, zero: true, over100: false }), '0%');
-  assert.equal(workedOutRateText({ percent: 100, zero: false, over100: true }), 'over 100%');
+  assert.equal(workedOutRateText({ percent: 7.449, over100: false }), 'at least 7.44%');
+  assert.equal(workedOutRateText({ percent: 0.000326, over100: false }), '0%');
+  // R shows as 0 until it rounds down to 0.01.
+  assert.equal(workedOutRateText({ percent: 0.009999, over100: false }), '0%');
+  assert.equal(workedOutRateText({ percent: 0.01, over100: false }), 'at least 0.01%');
+  assert.equal(workedOutRateText({ percent: 100, over100: true }), 'over 100%');
+});
+
+test('workedOutRateText gives R to 3 decimals for "Show the math", as "0.000%" when it shows as 0 (§7.0, §7.5)', () => {
+  assert.equal(workedOutRateText({ percent: 7.440472, over100: false }, 3), 'at least 7.440%');
+  assert.equal(workedOutRateText({ percent: 0.000326, over100: false }, 3), '0.000%');
+  // 0.0055% shows as 0 to 2 decimals but not to 3.
+  assert.equal(workedOutRateText({ percent: 0.0055, over100: false }, 3), 'at least 0.005%');
+  assert.equal(workedOutRateText({ percent: 100, over100: true }, 3), 'over 100%');
 });
 
 test('key numbers that need a blank input show "—"', () => {
@@ -244,4 +275,82 @@ test('problemCount counts the red and amber cards', () => {
   assert.equal(problemCount(cardsOf('red', 'amber', 'green', 'neutral', 'amber')), 3);
   assert.equal(problemCount(cardsOf('green', 'neutral')), 0);
   assert.equal(problemCount([]), 0);
+});
+
+test('two amounts match within $1 (SPEC §5)', () => {
+  assert.equal(MATCH_TOLERANCE_CENTS, 100);
+});
+
+test('the sticker percent is rounded half up to 1 decimal, ties included', () => {
+  assert.equal(percentOfStickerText(150000, 3800000), '3.9%');
+  // $1,121 off $38,000 is exactly 2.95%. Dividing before multiplying by 100 would round it down to 2.9%.
+  assert.equal(percentOfStickerText(112100, 3800000), '3%');
+  assert.equal(percentOfStickerText(0, 3650000), '0%');
+});
+
+test('card makes a Verdict card from the outcome of its check, with a null context line unless it has one', () => {
+  const outcome = {
+    severity: 'green',
+    headline: 'At sticker.',
+    sentence: 'Their sale price is the sticker.',
+    math: ['Sale price − sticker: $0.00'],
+  };
+  assert.deepEqual(card('sticker', 7, outcome), { key: 'sticker', number: 7, ...outcome, context: null });
+  assert.equal(card('sticker', 7, { ...outcome, context: 'The KBB line.' }).context, 'The KBB line.');
+});
+
+test('missingInputNote is a neutral note naming the blank inputs a card needs (SPEC §6.5)', () => {
+  const note = missingInputNote('months', 'check their payment', 'It needs the months.', ['Their payment: $699.00']);
+  assert.deepEqual(note, {
+    severity: 'neutral',
+    headline: 'Enter months to check their payment.',
+    sentence: 'It needs the months.',
+    math: ['Their payment: $699.00'],
+  });
+});
+
+test('listOf joins names with commas and a last "and"', () => {
+  assert.equal(listOf(['months']), 'months');
+  assert.equal(listOf(['their rate', 'months']), 'their rate and months');
+  assert.equal(listOf(['their rate', 'your outside rate', 'months']), 'their rate, your outside rate and months');
+});
+
+test('countOf gives a count with its unit, in the singular for 1 (SPEC §6.5)', () => {
+  assert.equal(countOf(1, 'month'), '1 month');
+  assert.equal(countOf(60, 'month'), '60 months');
+  assert.equal(countOf(1, 'payment'), '1 payment');
+  assert.equal(countOf(15, 'day'), '15 days');
+});
+
+test("the math's names for the first-payment timings, with the desk timings in the Deal's order (SPEC §7.3)", () => {
+  assert.deepEqual(TIMING_NAMES, {
+    regular: 'a first payment a month after signing',
+    fortyFiveDay: 'a first payment 45 days after signing',
+    contractDates: "the contract's dates",
+  });
+  assert.deepEqual(DESK_TIMING_NAMES, [TIMING_NAMES.regular, TIMING_NAMES.fortyFiveDay, TIMING_NAMES.contractDates]);
+});
+
+test('their rate in the math is their APR or the rate worked out from their payment, to 3 decimals (SPEC §7.0)', () => {
+  assert.equal(theirRateMathText(dealWith()), '5.900%');
+  assert.equal(theirRateMathText(dealWith({ theirAprMilli: 6135 })), '6.135%');
+  assert.equal(theirRateMathText(dealWith({ theirAprMilli: null })), 'at least 7.440%, worked out from their payment');
+  const overHundred = dealWith({ theirAprMilli: null, theirPaymentCents: 699000 });
+  assert.equal(theirRateMathText(overHundred), 'over 100%, worked out from their payment');
+  assert.equal(theirRateMathText(dealWith({ theirAprMilli: null, theirPaymentCents: null })), 'unknown');
+});
+
+test('a worked-out rate rounding down to 0 at 3 decimals reads "0.000%" in the math, without "at least" (§7.5)', () => {
+  const rateFor = (theirPaymentCents) =>
+    theirRateMathText(dealWith({ theirAprMilli: null, months: 36, theirPaymentCents }));
+  // SPEC §13: $967.37 × 36 on $34,825.14 works out to 0.000326%.
+  assert.equal(rateFor(96737), '0.000%, worked out from their payment');
+  // 36 × $960.00 is less than $34,825.14, so the rate is 0%.
+  assert.equal(rateFor(96000), '0.000%, worked out from their payment');
+  // $967.45 × 36 works out to 0.0055%, which shows as 0 to 2 decimals but not to 3.
+  assert.equal(rateFor(96745), 'at least 0.005%, worked out from their payment');
+});
+
+test("Reg Z's APR tolerance is given in full for the math", () => {
+  assert.equal(aprTolerancePointsText(reference), '0.125 points');
 });

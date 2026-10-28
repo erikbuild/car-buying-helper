@@ -1,25 +1,25 @@
 // ABOUTME: Builds Verdict cards 13–17, which check the contract's federal disclosure box.
 // ABOUTME: Compares the box with itself and with the deal that was quoted.
+import {
+  DESK_TIMING_NAMES,
+  MATCH_TOLERANCE_CENTS,
+  TIMING_NAMES,
+  aprTolerancePointsText,
+  card,
+  countOf,
+  listOf,
+  missingInputNote,
+  theirRateMathText,
+} from './display.js';
 import { FORTY_FIVE_DAY, REGULAR, levelPayments, monthlyPayment, solveRate } from './loan.js';
-import { formatCents, formatDollars, formatRateMilli, formatRatePercent } from './numbers.js';
+import { MILLI_PER_PERCENT, formatCents, formatDollars, formatRateMilli, formatRatePercent } from './numbers.js';
 
-// Payments, totals and the finance charge match within this much (SPEC §5).
-const MATCH_TOLERANCE_CENTS = 100;
 // With no final payment entered, the total of payments matches the payments within this much (SPEC §5).
 const NO_FINAL_PAYMENT_TOLERANCE_CENTS = 500;
 // Reg Z measures a first period's odd days against a 30-day month (SPEC §7.3).
 const DAYS_PER_MONTH = 30;
 // A loan with fewer payments than this has Reg Z's tighter first-period limits (SPEC §7.3).
 const MONTHS_PER_YEAR = 12;
-// Entered rates are thousandths of a percent: 5900 is 5.9%.
-const MILLI_PER_PERCENT = 1000;
-// What "Show the math" calls each desk timing, in the order the Deal lists them: the regular timing, the 45-day timing,
-// then the contract dates' timing when they're entered (SPEC §7.3).
-const DESK_TIMING_NAMES = [
-  'a first payment a month after signing',
-  'a first payment 45 days after signing',
-  "the contract's dates",
-];
 
 // The contract fields the cards need, as their notes name them, in the order the contract section lists them.
 const CONTRACT_FIELD_NAMES = {
@@ -36,7 +36,7 @@ const NOT_COMPARED = Object.freeze({ ran: false, failed: false, text: null });
 
 // Verdict cards 13–17, in number order (SPEC §6.5). They show once any contract field other than the two dates is
 // entered. There are none in a cash deal, which has no loan for the contract to check, or before the sale price is
-// entered, while there's no deal to check it against.
+// entered, while there's no deal to check it against. The contract cards have no context line.
 export function contractCards(deal, reference) {
   const { contract } = deal.inputs;
   if (!deal.hasSale || deal.isCashDeal || !anyContractFieldEntered(contract)) {
@@ -91,11 +91,6 @@ export function quoteComparisons(deal, reference) {
 // Whether any contract field other than the two dates, which give the timing, is entered.
 function anyContractFieldEntered(contract) {
   return Object.entries(contract).some(([field, value]) => field !== 'timing' && value !== null);
-}
-
-// A Verdict card from the outcome of its check. The contract cards have no context line.
-function card(key, number, { severity, headline, sentence, math }) {
-  return { key, number, severity, headline, sentence, context: null, math };
 }
 
 // Card 13 (SPEC §6.5, §7.10): the contract's amount financed against the deal's, which §7.2 works out with the extras
@@ -212,9 +207,8 @@ function paymentsOutcome(contract) {
 // financed, with each timing the contract may use. Reg Z allows the APR to be 0.125 points from one of them, and the
 // closest one is shown. A 0% APR is checked without solving.
 function aprOutcome(contract, reference) {
-  const tolerancePoints = reference.regZ.aprToleranceMilli / MILLI_PER_PERCENT;
-  const toleranceLine = `Reg Z allows the APR to be ${tolerancePoints} points from a rate the payments work out to `
-    + '(12 CFR 1026.22(a)(2)).';
+  const toleranceLine = `Reg Z allows the APR to be ${aprTolerancePointsText(reference)} from a rate the payments `
+    + 'work out to (12 CFR 1026.22(a)(2)).';
   const needed = ['amountFinancedCents', 'aprMilli', 'paymentCents', 'paymentCount'];
   // At 0% the finance charge is checked too.
   const blank = blankContractFields(contract, contract.aprMilli === 0 ? [...needed, 'financeChargeCents'] : needed);
@@ -333,7 +327,7 @@ function aprComparisonMath({ theirAprMilli, contract }, reference) {
   return [
     `APR on the contract: ${formatRateMilli(contract.aprMilli, 3)}`,
     `Their APR: ${formatRateMilli(theirAprMilli, 3)}`,
-    `The contract's APR should be at most their APR + ${toleranceMilli / MILLI_PER_PERCENT} points: `
+    `The contract's APR should be at most their APR + ${aprTolerancePointsText(reference)}: `
       + formatRateMilli(theirAprMilli + toleranceMilli, 3),
   ];
 }
@@ -360,25 +354,6 @@ function termComparisonMath({ months, contract }) {
     `Months quoted: ${months}`,
     'The number of payments should equal the months quoted.',
   ];
-}
-
-// Their rate for "Show the math", to 3 decimals (SPEC §7.0): their APR, or the rate worked out from their payment,
-// rounded down. Needs their rate to be known.
-function theirRateMathText({ inputs, theirRate }) {
-  if (theirRate.entered) {
-    return formatRateMilli(inputs.theirAprMilli, 3);
-  }
-  return `${workedOutRateMathText(theirRate)}, worked out from their payment`;
-}
-
-// R, the rate worked out from their payment, for "Show the math", to 3 decimals rounded down (SPEC §7.0, §7.5):
-// "at least 7.440%", or "0.000%" without "at least" when it shows as 0, or "over 100%".
-function workedOutRateMathText({ percent, over100 }) {
-  if (over100) {
-    return 'over 100%';
-  }
-  const rate = formatRatePercent(percent, 'down', 3);
-  return rate === formatRatePercent(0, 'down', 3) ? rate : `at least ${rate}`;
 }
 
 // Comparison 1 (SPEC §7.10): the contract APR against their APR, when both are entered.
@@ -495,9 +470,9 @@ function contractAprSolutions(contract, reference) {
 function contractTimings(contract, reference) {
   const { timing } = contract;
   const dated = timing === null
-    ? { timing: FORTY_FIVE_DAY, name: 'a first payment 45 days after signing' }
-    : { timing, name: `the contract's dates, ${firstPeriodText(timing)} to the first payment` };
-  const regular = { timing: REGULAR, name: 'a regular first month' };
+    ? { timing: FORTY_FIVE_DAY, name: TIMING_NAMES.fortyFiveDay }
+    : { timing, name: `${TIMING_NAMES.contractDates}, ${firstPeriodText(timing)} to the first payment` };
+  const regular = { timing: REGULAR, name: TIMING_NAMES.regular };
   return regularFirstPeriodAllowed(contract, reference) ? [dated, regular] : [dated];
 }
 
@@ -521,7 +496,7 @@ function firstPeriodLimitLines(contract, reference) {
     return [];
   }
   const firstPeriod = firstPeriodText(contract.timing);
-  return [`Not with a regular first month: a first period of ${firstPeriod} is outside Reg Z's limits.`];
+  return [`Not with ${TIMING_NAMES.regular}: a first period of ${firstPeriod} is outside Reg Z's limits.`];
 }
 
 // A solved rate for "Show the math", to 3 decimals rounded half up (SPEC §7.0), or why there's none.
@@ -567,22 +542,6 @@ function blankContractFields(contract, fields) {
 // Contract fields named together: "the contract's finance charge and total of payments".
 function contractFieldsText(names) {
   return `the contract's ${listOf(names)}`;
-}
-
-// A neutral note asking for the blank inputs a card needs (SPEC §6.5): "Enter the contract's amount financed to check
-// it against your deal."
-function missingInputNote(inputsText, purpose, sentence, math) {
-  return { severity: 'neutral', headline: `Enter ${inputsText} to ${purpose}.`, sentence, math };
-}
-
-// Names joined into a list: "a", "a and b", "a, b and c".
-function listOf(names) {
-  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
-}
-
-// A count with its unit, in the singular for 1 (SPEC §6.5): "1 month", "60 months".
-function countOf(count, unit) {
-  return count === 1 ? `1 ${unit}` : `${count} ${unit}s`;
 }
 
 // The sum of some amounts.

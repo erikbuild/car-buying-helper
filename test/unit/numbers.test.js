@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  MILLI_PER_PERCENT,
   divideHalfUp,
   formatAbout,
   formatAmountForField,
@@ -60,6 +61,11 @@ test('parseRate gives an error and no rate for unreadable, negative, too high or
   assert.deepEqual(parseRate('5.1234'), { milli: null, error: 'Use at most 3 decimals.' });
   assert.deepEqual(parseRate('x'), { milli: null, error: 'Enter a rate, like 5.9.' });
   assert.deepEqual(parseRate('-1'), { milli: null, error: "Can't be negative." });
+});
+
+test("MILLI_PER_PERCENT turns a parsed rate's thousandths of a percent into percent", () => {
+  assert.equal(parseRate('5.9').milli / MILLI_PER_PERCENT, 5.9);
+  assert.equal(parseRate('6.135').milli / MILLI_PER_PERCENT, 6.135);
 });
 
 test('parseWholeNumber reads a whole number inside its limits', () => {

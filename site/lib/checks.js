@@ -2,6 +2,7 @@
 // ABOUTME: Shows only the start card until their sale price is entered.
 import { contractCards } from './contract-checks.js';
 import { deskCards } from './desk-checks.js';
+import { card } from './display.js';
 
 // The order the Verdict tab shows the severities in: the problems, then the checks that passed, then the notes
 // (SPEC §6.5).
@@ -20,13 +21,10 @@ export function verdictCards(deal, rules, reference) {
 
 // The note that asks for their sale price, which every check needs (SPEC §6.2, §6.5).
 function startCard() {
-  return {
-    key: 'start',
-    number: 0,
+  return card('start', 0, {
     severity: 'neutral',
     headline: 'Enter their sale price on the Price tab to start.',
     sentence: 'Every check needs it.',
-    context: null,
     math: ['Their sale price: blank'],
-  };
+  });
 }
