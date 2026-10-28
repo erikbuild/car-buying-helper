@@ -15,31 +15,15 @@ import { connecticut } from '../../site/rules/connecticut.js';
 import { reference } from '../../site/rules/reference.js';
 import { assertWithin } from '../assertions.js';
 import { verdictOf } from '../cards.js';
-import { EXAMPLE_1_TEXT, typed } from '../fixtures.js';
-
-// The contract dates of Examples 2–4: the first payment 1 month and 15 days after signing.
-const CONTRACT_DATES = { contractDate: '2026-10-30', firstPaymentDate: '2026-12-14' };
-
-// Example 3's contract: Example 1's deal with a $2,995 warranty and its $190.18 tax added to the amount financed.
-const EXAMPLE_3_CONTRACT_FIELDS = {
-  contractAmountFinanced: '38,010.32',
-  contractFinanceCharge: '5,974.48',
-  contractTotalOfPayments: '43,984.80',
-  contractApr: '5.9',
-  contractPayment: '733.08',
-  contractPaymentCount: '60',
-  ...CONTRACT_DATES,
-};
-
-// Example 1's cards, in order.
-const EXAMPLE_1_VERDICTS = [
-  ['red', "$699.00/mo doesn't add up."],
-  ['amber', "You're not getting the 0% special or the $1,000 cash."],
-  ['amber', '0.4 points over your outside rate.'],
-  ['green', 'The 0% special beats the $1,000 cash by about $1,790.'],
-  ['green', '$699 doc fee.'],
-  ['green', 'No extras in the deal.'],
-];
+import {
+  CONTRACT_DATES,
+  EXAMPLE_1_PAYMENT_SENTENCE,
+  EXAMPLE_1_STRIP,
+  EXAMPLE_1_TEXT,
+  EXAMPLE_1_VERDICTS,
+  EXAMPLE_3_CONTRACT_TEXT,
+  typed,
+} from '../fixtures.js';
 
 // Card 5's figures for Example 1's deal (§7.9): the special rate's payment for nA months on AF₀, the cash's payment on
 // AF_B, what each costs in today's dollars at the outside rate, which wins and by how much, and the break-even outside
@@ -146,20 +130,11 @@ test('Example 1: a padded payment on a standard-rate loan (§7.11)', () => {
   assert.equal(formatCents(deal.docFeeCostCents), '$743.39');
 
   assert.deepEqual(cards.map(verdictOf), EXAMPLE_1_VERDICTS);
-  assert.equal(
-    payment.sentence,
-    'At 5.9% for 60 months it should be $671.65 to $673.30. Either the real rate is at least 7.44%, or at least '
-      + '$1,320 extra is in the loan, or the first payment is more than 45 days away.',
-  );
+  assert.equal(payment.sentence, EXAMPLE_1_PAYMENT_SENTENCE);
   assertSentenceSays(cardWithKey(cards, 'outsideRate'), 'That costs $387 over 60 months.');
   assertSentenceSays(cardWithKey(cards, 'specialOrCash'), 'Cash only wins if you can borrow below 1.9%.');
   assertSentenceSays(cardWithKey(cards, 'docFee'), 'With tax it costs $743.');
-  assert.deepEqual(strip, {
-    driveAway: '$39,825',
-    shouldBe: 'should be $671.65',
-    theirs: 'theirs $699.00',
-    problems: '3 problems',
-  });
+  assert.deepEqual(strip, EXAMPLE_1_STRIP);
 });
 
 test('Example 2: a clean 0% deal, with its contract (§7.11)', () => {
@@ -209,7 +184,7 @@ test('Example 2: a clean 0% deal, with its contract (§7.11)', () => {
 });
 
 test('Example 3: a packed contract (§7.11)', () => {
-  const { deal, cards, strip } = pageFor(exampleForm(EXAMPLE_3_CONTRACT_FIELDS));
+  const { deal, cards, strip } = pageFor(exampleForm(EXAMPLE_3_CONTRACT_TEXT));
   // The contract's dates give 5.800%. A regular first month gives 5.900%, and it's allowed, because a first period
   // 15 days longer than a month is within Reg Z's 21-day limit.
   assert.deepEqual(contractAprFigures(deal), [[{ m: 1, d: 15 }, '5.800%'], [{ m: 1, d: 0 }, '5.900%']]);
@@ -483,7 +458,7 @@ const SWEPT_FIELDS = [
 
 test('every mix of blank fields shows only whole text, and nothing throws (Review Focus 2)', () => {
   // Example 3 is Example 1's deal with a contract, so clearing its fields reaches the contract cards too.
-  const example3 = exampleForm(EXAMPLE_3_CONTRACT_FIELDS);
+  const example3 = exampleForm(EXAMPLE_3_CONTRACT_TEXT);
   for (let blanks = 0; blanks < 2 ** SWEPT_FIELDS.length; blanks += 1) {
     const cleared = SWEPT_FIELDS.filter((_, index) => (blanks & (1 << index)) !== 0);
     const form = typed(Object.fromEntries(cleared.map((name) => [name, ''])), example3);
@@ -500,7 +475,7 @@ const EXTREME_FIELDS = {
   'a $500,000 sale': { salePrice: '500,000' },
   'a 30% APR': { theirApr: '30' },
   'their payment of $6,990, ten times too high': { theirPayment: '6,990' },
-  "Example 3's contract with 96 payments": { ...EXAMPLE_3_CONTRACT_FIELDS, contractPaymentCount: '96' },
+  "Example 3's contract with 96 payments": { ...EXAMPLE_3_CONTRACT_TEXT, contractPaymentCount: '96' },
 };
 
 for (const [name, fields] of Object.entries(EXTREME_FIELDS)) {

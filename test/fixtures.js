@@ -1,5 +1,5 @@
-// ABOUTME: Example 1 from SPEC.md §7.11 as typed field text, as parsed deal inputs and as a Deal, the deal the tests start from.
-// ABOUTME: Tests pass overrides, and extras made with extra(), to change it; contract overrides change only the contract fields they name.
+// ABOUTME: SPEC.md §7.11's worked examples for the tests: Example 1 as text, inputs and a Deal, and expected results.
+// ABOUTME: Tests change Example 1 with overrides and extra(); contract overrides change only the fields they name.
 import { deriveDeal } from '../site/lib/deal.js';
 import { editField, emptyForm } from '../site/lib/form.js';
 import { connecticut } from '../site/rules/connecticut.js';
@@ -75,3 +75,41 @@ export function extra(id, type, priceCents, changes = {}) {
 export function dealWith(overrides = {}) {
   return deriveDeal(dealInputs(overrides), connecticut);
 }
+
+// The contract dates of Examples 2–4 (§7.11): the first payment 1 month and 15 days after signing.
+export const CONTRACT_DATES = { contractDate: '2026-10-30', firstPaymentDate: '2026-12-14' };
+
+// Example 3's contract (§7.11) as typed into the contract section: Example 1's deal with a $2,995 warranty and its
+// $190.18 tax added to the amount financed.
+export const EXAMPLE_3_CONTRACT_TEXT = {
+  contractAmountFinanced: '38,010.32',
+  contractFinanceCharge: '5,974.48',
+  contractTotalOfPayments: '43,984.80',
+  contractApr: '5.9',
+  contractPayment: '733.08',
+  contractPaymentCount: '60',
+  ...CONTRACT_DATES,
+};
+
+// Example 1's Verdict cards (§7.11) as [severity, headline], in order.
+export const EXAMPLE_1_VERDICTS = [
+  ['red', "$699.00/mo doesn't add up."],
+  ['amber', "You're not getting the 0% special or the $1,000 cash."],
+  ['amber', '0.4 points over your outside rate.'],
+  ['green', 'The 0% special beats the $1,000 cash by about $1,790.'],
+  ['green', '$699 doc fee.'],
+  ['green', 'No extras in the deal.'],
+];
+
+// Example 1's summary strip (§7.11).
+export const EXAMPLE_1_STRIP = {
+  driveAway: '$39,825',
+  shouldBe: 'should be $671.65',
+  theirs: 'theirs $699.00',
+  problems: '3 problems',
+};
+
+// Example 1's payment card sentence (§7.11).
+export const EXAMPLE_1_PAYMENT_SENTENCE =
+  'At 5.9% for 60 months it should be $671.65 to $673.30. Either the real rate is at least 7.44%, or at least '
+  + '$1,320 extra is in the loan, or the first payment is more than 45 days away.';
