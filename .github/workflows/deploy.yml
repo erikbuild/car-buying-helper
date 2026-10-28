@@ -19,7 +19,9 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # macOS, so the browser tests lay the page out in Apple's system font, as the iPhone does. Whether the problem
+    # cards fit one screen depends on where their lines wrap.
+    runs-on: macos-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

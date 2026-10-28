@@ -118,6 +118,7 @@ Car Buying Helper is a single web page that Erik opens on his phone while sittin
 
 *The build*
 - Test tools are Node's built-in test runner and Playwright, running WebKit, Chromium and Firefox, including the offline test. Deployment runs through GitHub Actions.
+- The deploy's tests run on a macOS runner, so the browsers lay the page out in Apple's system font, as the iPhone does. Whether 3 problems fit one screen (§6.5) depends on where lines wrap, and Linux's wider DejaVu Sans wraps them sooner.
 - The page caches itself and never waits on the network. At the dealer, Erik opens it from the home-screen icon.
 - File names describe jobs: `offline.js`, `deploy.yml`, `lib/numbers.js`. All Connecticut text and numbers live in the rules module.
 
@@ -875,7 +876,7 @@ package.json              development only (@playwright/test)
 
 ## 14. Build and deploy
 
-- A GitHub Actions workflow, `deploy.yml`, runs on every push to `main`:
+- A GitHub Actions workflow, `deploy.yml`, runs on a macOS runner (§5) on every push to `main`:
   1. install
   2. unit and integration tests
   3. install the Playwright browsers and run the end-to-end tests

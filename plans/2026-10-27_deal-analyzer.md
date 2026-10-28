@@ -748,7 +748,7 @@ only contractDate and firstPaymentDate entered → []
 - [ ] **Step 4: Write `deploy.yml`.**
   - Triggers: push to `main` and `workflow_dispatch`.
   - Permissions: `contents: read`, `pages: write`, `id-token: write`. Concurrency group `pages`.
-  - One job in environment `github-pages`, running these steps:
+  - One job in environment `github-pages`, on `macos-latest` so the browsers use the iPhone's system font, running these steps:
     1. `actions/checkout@v4`
     2. `actions/setup-node@v4` (node 22, npm cache)
     3. `npm ci`
