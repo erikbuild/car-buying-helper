@@ -270,9 +270,16 @@ for (const button of document.querySelectorAll('[data-step-down]')) {
   });
 }
 
-// Each add button adds an extra of its type (SPEC §6.4).
+// Each add button adds an extra of its type (SPEC §6.4). Its item goes at the end of the list, often below the bottom
+// of the screen, so the button scrolls the item into view and puts the cursor in its price, which brings up the keypad
+// on a phone.
 for (const button of document.querySelectorAll('[data-add-extra]')) {
-  button.addEventListener('click', () => update(addExtra(form, button.dataset.addExtra, rules)));
+  button.addEventListener('click', () => {
+    update(addExtra(form, button.dataset.addExtra, rules));
+    const item = document.querySelector(`[data-extra-id="${form.extras.at(-1).id}"]`);
+    item.scrollIntoView({ block: 'nearest' });
+    item.querySelector('[data-extra-field="priceText"]').focus();
+  });
 }
 
 document.querySelector('[data-start-over]').addEventListener('click', () => {

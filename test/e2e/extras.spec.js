@@ -127,6 +127,25 @@ test("each add button adds its type's item, named after the type, out of the dea
     await expectStrip(page, EXAMPLE_1_STRIP);
   });
 
+test('each add button shows its item below the strip, with the cursor in its price', async ({ page }) => {
+  await openExtrasOnExample1(page);
+  const strip = page.getByRole('region', { name: 'Summary', exact: true });
+  // Each item goes at the end of the list, which is below the bottom of the screen from the second one on.
+  for (const type of ['warranty', 'gap', 'maintenance']) {
+    const item = await addExtra(page, type);
+    const price = extraField(item, 'priceText');
+    await expect(price, type).toBeFocused();
+    const stripBox = await strip.boundingBox();
+    const itemBox = await item.boundingBox();
+    expect(itemBox.y, type).toBeGreaterThanOrEqual(stripBox.y + stripBox.height);
+    // Scrolled into view, the item's bottom lines up with the screen's, give or take the scroll's rounding to a pixel.
+    expect(itemBox.y + itemBox.height, type).toBeLessThanOrEqual(page.viewportSize().height + 1);
+    // What's typed next goes into the new item's price.
+    await page.keyboard.type('895');
+    await expect(price, type).toHaveValue('895');
+  }
+});
+
 test("a price that isn't a number shows its error and counts as $0", async ({ page }) => {
   await openExtrasOnExample1(page);
   const warranty = await addExtra(page, 'warranty');
