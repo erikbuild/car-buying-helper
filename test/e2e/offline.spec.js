@@ -87,6 +87,9 @@ test('opens offline after one online visit', async ({ page, context, siteServer 
   const heading = page.getByRole('heading', { name: 'Car Buying Helper' });
   await page.reload();
   await expect(heading).toBeVisible();
+  // The page still works the deal out: $36,500 with 6.35% tax and the $264 DMV estimate is $39,081.75 drive-away.
+  await page.locator('#salePrice').fill('36500');
+  await expect(page.locator('[data-strip="drive-away"]')).toHaveText('$39,082');
 
   // Firefox reloads a page it has seen from its own HTTP cache, so the page must also open at an address
   // the browser hasn't loaded.

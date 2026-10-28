@@ -1,5 +1,6 @@
 // ABOUTME: End-to-end checks of the page layout: each field's label, keypad and place, text size, tap targets and colors.
 // ABOUTME: Also checks the elements the app fills in, the sticky strip, phone and desktop widths, and the outside links.
+import { connecticut } from '../../site/rules/connecticut.js';
 import { test, expect } from './fixtures.js';
 
 // Each field's id, its visible label, its keypad (an inputmode, or the date picker), and where it sits on the page.
@@ -115,8 +116,8 @@ test('fields show their hints and placeholders, and each hint and error line des
     await expect(page.locator(`[data-hint-for="${name}"]`)).toHaveText(hint);
     await expect(page.locator(`#${name}`)).toHaveAccessibleDescription(hint);
   }
-  // The app writes these: the sale price hint from the state's rules, and the date pair's hint as dates are entered.
-  await expect(page.locator('[data-hint-for="salePrice"]')).toBeEmpty();
+  // The app writes the sale price hint from the state's rules at load, and the date pair's hint as dates are entered.
+  await expect(page.locator('[data-hint-for="salePrice"]')).toHaveText(connecticut.hints.salePrice);
   await expect(page.locator('[data-hint-for="contractDates"]')).toBeEmpty();
 
   // Write text where the app writes it, then read each field's description.
