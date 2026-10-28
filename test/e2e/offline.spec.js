@@ -4,6 +4,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stampRelease } from '../../tools/stamp-release.js';
 import { startServer } from '../serve.js';
 import { test as pageTest, expect } from './fixtures.js';
 
@@ -21,14 +22,14 @@ async function waitForOfflineCache(page) {
 function copySiteAsRelease(release, dir) {
   cpSync(siteDir, dir, { recursive: true });
   const workerPath = path.join(dir, 'offline.js');
-  writeFileSync(workerPath, readFileSync(workerPath, 'utf8')
-    .replace("const RELEASE = 'development';", `const RELEASE = '${release}';`));
+  writeFileSync(workerPath, stampRelease(readFileSync(workerPath, 'utf8'), release));
   const pagePath = path.join(dir, 'index.html');
   writeFileSync(pagePath, readFileSync(pagePath, 'utf8')
     .replace('</head>', `  <meta name="test-release" content="${release}">\n</head>`));
 }
 
-// Stops serving and closes the browser's open connections, so the port is free for the next release.
+// Stops serving and closes the browser's open connections, so no request reaches the server through them
+// and the port is free for the next release.
 function stopServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
@@ -37,40 +38,60 @@ function stopServer(server) {
 }
 
 const test = pageTest.extend({
-  // Serves a copy of site/ as the named release, replacing the release served before it, and resolves to
-  // the page's address. The first release takes a free port and later ones reuse it, so every release
-  // has the same origin while browsers running this test at the same time each get their own port.
-  serveRelease: async ({}, use) => {
-    const dirs = [];
+  // The test's own server for the page: serve(dir) serves a folder in place of the one served before it and
+  // resolves to the page's address, and stop() stops serving. The first folder takes a free port and later
+  // ones reuse it, so every folder a test serves has the same origin while browsers running these tests at
+  // the same time each get their own port.
+  siteServer: async ({}, use) => {
     let server = null;
     let port = 0;
-    await use(async (release) => {
+    const stop = async () => {
       if (server !== null) {
         await stopServer(server);
         server = null;
       }
-      const dir = mkdtempSync(path.join(tmpdir(), `car-buying-helper-release-${release}-`));
-      dirs.push(dir);
-      copySiteAsRelease(release, dir);
+    };
+    const serve = async (dir) => {
+      await stop();
       server = await startServer(dir, port);
       port = server.address().port;
       return `http://localhost:${port}/car-buying-helper/`;
+    };
+    await use({ serve, stop });
+    await stop();
+  },
+  // Serves a copy of site/ as the named release, replacing the release served before it, and resolves to
+  // the page's address.
+  serveRelease: async ({ siteServer }, use) => {
+    const dirs = [];
+    await use(async (release) => {
+      const dir = mkdtempSync(path.join(tmpdir(), `car-buying-helper-release-${release}-`));
+      dirs.push(dir);
+      copySiteAsRelease(release, dir);
+      return siteServer.serve(dir);
     });
-    if (server !== null) {
-      await stopServer(server);
-    }
     for (const dir of dirs) {
       rmSync(dir, { recursive: true, force: true });
     }
   },
 });
 
-test('opens offline after one online visit', async ({ page, context }) => {
-  await page.goto('./');
+test('opens offline after one online visit', async ({ page, context, siteServer }) => {
+  const pageUrl = await siteServer.serve(siteDir);
+  await page.goto(pageUrl);
   await waitForOfflineCache(page);
+
+  // Firefox's offline switch doesn't cover the worker's own requests, so the server stops too.
+  await siteServer.stop();
   await context.setOffline(true);
+  const heading = page.getByRole('heading', { name: 'Car Buying Helper' });
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Car Buying Helper' })).toBeVisible();
+  await expect(heading).toBeVisible();
+
+  // Firefox reloads a page it has seen from its own HTTP cache, so the page must also open at an address
+  // the browser hasn't loaded.
+  await page.goto(`${pageUrl}?source=home-screen`);
+  await expect(heading).toBeVisible();
 });
 
 test('the next release replaces the cached one', async ({ page, serveRelease }) => {
