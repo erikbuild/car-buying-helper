@@ -9,6 +9,7 @@ import { dealInputs } from '../fixtures.js';
 
 const ENTER_BOTH_DATES = 'Enter both dates.';
 const DATES_OUT_OF_ORDER = 'The first payment date must be after the contract date.';
+const MORE_THAN_3_MONTHS_AFTER = 'More than 3 months after the contract date. Check the dates.';
 const UNREADABLE_AMOUNT = 'Enter a number, like 36,500.';
 
 // Example 1's fields (SPEC §7.11) as Erik types them, in the order he types them. Every other field is blank.
@@ -270,6 +271,23 @@ test('a first payment date on or before the contract date shows an error there, 
   for (const firstPaymentDate of ['2026-10-01', '2026-10-30']) {
     const { inputs, errors, dateHint } = readInputs(typed({ contractDate: '2026-10-30', firstPaymentDate }));
     assert.deepEqual(errors, { firstPaymentDate: DATES_OUT_OF_ORDER }, firstPaymentDate);
+    assert.equal(inputs.contract.timing, null, firstPaymentDate);
+    assert.equal(dateHint, null, firstPaymentDate);
+  }
+});
+
+test('a first payment exactly 3 months after the contract date still sets the timing', () => {
+  const { inputs, errors, dateHint } = readInputs(typed({ contractDate: '2026-10-30', firstPaymentDate: '2027-01-30' }));
+  assert.deepEqual(inputs.contract.timing, { m: 3, d: 0 });
+  assert.equal(dateHint, null);
+  assert.deepEqual(errors, {});
+});
+
+test('a first payment more than 3 months after the contract date shows an error there, and the dates count as blank', () => {
+  // 3 months and 1 day, 5 months to the day, and Example 1's first payment date with 2027 typed for 2026.
+  for (const firstPaymentDate of ['2027-01-31', '2027-03-30', '2027-12-14']) {
+    const { inputs, errors, dateHint } = readInputs(typed({ contractDate: '2026-10-30', firstPaymentDate }));
+    assert.deepEqual(errors, { firstPaymentDate: MORE_THAN_3_MONTHS_AFTER }, firstPaymentDate);
     assert.equal(inputs.contract.timing, null, firstPaymentDate);
     assert.equal(dateHint, null, firstPaymentDate);
   }

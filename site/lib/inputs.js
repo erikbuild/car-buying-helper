@@ -8,6 +8,7 @@ const MONTH_COUNT_LIMITS = { min: 1, max: 96 };
 
 const ENTER_BOTH_DATES = 'Enter both dates.';
 const DATES_OUT_OF_ORDER = 'The first payment date must be after the contract date.';
+const MORE_THAN_3_MONTHS_AFTER = 'More than 3 months after the contract date. Check the dates.';
 
 // Keeps a parse result's error, when it has one, in `errors` under `key`, and returns the result.
 function noteError(errors, key, result) {
@@ -17,10 +18,16 @@ function noteError(errors, key, result) {
   return result;
 }
 
+// Whether a first payment m whole months plus d days after the contract date is more than 3 months after it (§7.3).
+function isMoreThan3Months({ m, d }) {
+  return m > 3 || (m === 3 && d > 0);
+}
+
 // Reads the two contract dates as {timing, dateHint, error} (§6.3). They count only as a pair, with the first payment
-// after the contract date, and then the timing is the first period between them (§7.3). Anything else counts as
-// blank: with one date entered, dateHint asks for both, and with the first payment on or before the contract date,
-// error says it must be after. A date counts as entered when it's a real date, which is all a date picker shows.
+// after the contract date and no more than 3 months after it, and then the timing is the first period between them
+// (§7.3). Anything else counts as blank: with one date entered, dateHint asks for both, and with the first payment on
+// or before the contract date, or more than 3 months after it, error says so. A date counts as entered when it's a
+// real date, which is all a date picker shows.
 function readContractDates(fields) {
   const contractDateEntered = parseCalendarDate(fields.contractDate) !== null;
   const firstPaymentDateEntered = parseCalendarDate(fields.firstPaymentDate) !== null;
@@ -28,6 +35,9 @@ function readContractDates(fields) {
     return { timing: null, dateHint: ENTER_BOTH_DATES, error: null };
   }
   const timing = firstPeriod(fields.contractDate, fields.firstPaymentDate);
+  if (timing !== null && isMoreThan3Months(timing)) {
+    return { timing: null, dateHint: null, error: MORE_THAN_3_MONTHS_AFTER };
+  }
   const outOfOrder = contractDateEntered && timing === null;
   return { timing, dateHint: null, error: outOfOrder ? DATES_OUT_OF_ORDER : null };
 }
@@ -35,7 +45,8 @@ function readContractDates(fields) {
 // Reads the form into DealInputs. A field whose text is unreadable, negative or out of range (§9) counts as blank, and
 // its message is in `errors`, by field name. An extra's price works the same way, with its message in `extraErrors`,
 // by extra id. A blank or invalid down payment, rebates or extra price counts as $0. dateHint asks for both contract
-// dates while only one is entered, and is null otherwise. Dates in the wrong order put an error on firstPaymentDate.
+// dates while only one is entered, and is null otherwise. Dates in the wrong order, or a first payment more than
+// 3 months after the contract date, put an error on firstPaymentDate.
 export function readInputs(form) {
   const { fields } = form;
   const errors = {};
