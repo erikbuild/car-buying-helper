@@ -77,6 +77,8 @@ npm run test:e2e         # end-to-end tests in WebKit, Chromium and Firefox
 npm run serve            # serves the page at http://localhost:4173/car-buying-helper/
 ```
 
+The page caches itself for offline use, and in the repo its release name never changes. So once a browser has opened the served page, it keeps showing the cached files after you edit `site/`. To see your edits, clear the site's data, or tick "Update on reload" under Chrome DevTools → Application → Service workers. The end-to-end tests start each browser fresh, so they always test the files on disk.
+
 Every push to `main` runs `.github/workflows/deploy.yml`. It runs every test, then writes the commit ID into `site/offline.js` as the release name (`node tools/stamp-release.js <release>`), and publishes `site/` with GitHub Pages. Phones pick up a new release only when `offline.js` changes. In the repo, the release name stays `development`.
 
 Rules for the links in this README: use plain text links, label KBB links `KBB.com` or `Kelley Blue Book`, mark the Mazda link `external link to www.MazdaUSA.com`, and don't link to CarGurus, whose terms forbid deep links. Edmunds and TrueCar block automated checks, so open those two links by hand in a browser before each release.
