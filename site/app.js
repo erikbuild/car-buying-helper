@@ -1,15 +1,17 @@
 // ABOUTME: Connects the page to the deal checks: reads the fields and extras, and renders the strip, tabs and cards.
-// ABOUTME: Also runs the tabs, the down payment and extras buttons and Start over, and registers the offline cache.
+// ABOUTME: Also saves the deal, runs the tabs, the down payment and extras buttons and Start over, and registers the offline cache.
 import { verdictCards } from './lib/checks.js';
 import { deriveDeal } from './lib/deal.js';
 import { amountFinancedLine, extraLine, keyNumbers, priceTabLines, summaryStrip } from './lib/display.js';
 import {
   FIELD_NAMES,
   addExtra,
+  deserializeForm,
   editExtra,
   editField,
   emptyForm,
   removeExtra,
+  serializeForm,
   setTakingCash,
   stepDownPayment,
 } from './lib/form.js';
@@ -25,12 +27,17 @@ const SEVERITY_WORDS = { red: 'Problem', amber: 'Check', green: 'OK', neutral: '
 
 const START_OVER_QUESTION = 'Start over? This clears the whole deal.';
 
+// Where the page saves the deal, as the form's saved text (SPEC §9).
+const SAVED_DEAL_KEY = 'car-buying-helper/deal';
+
 const strip = document.querySelector('.strip');
 const tabs = [...document.querySelectorAll('[role="tab"]')];
 const takingCashSwitch = document.getElementById('takingCash');
 
-// The deal as typed: every field's text, the switch, the down payment their quote is tied to, and the extras.
-let form = emptyForm();
+// The deal as typed: every field's text, the switch, the down payment their quote is tied to, and the extras. The page
+// opens with the deal it saved, and starts fresh when nothing is saved or the saved text doesn't read back as a form
+// (SPEC §9).
+let form = deserializeForm(withStorage((storage) => storage.getItem(SAVED_DEAL_KEY)), rules) ?? emptyForm();
 
 // An element with these attributes, holding these children, which are elements or text.
 function element(tag, attributes, children) {
@@ -179,10 +186,21 @@ function cardElement({ key, severity, headline, sentence, context, math }) {
   return element('article', { 'data-card': key, 'data-severity': severity }, parts);
 }
 
-// Makes `next` the page's form and shows what it works out to.
+// Runs `call` with the page's storage and gives what it returns. When the browser won't let the page use its storage,
+// as in some private windows, it gives null instead, and the page works the same without saving (SPEC §9).
+function withStorage(call) {
+  try {
+    return call(localStorage);
+  } catch {
+    return null;
+  }
+}
+
+// Makes `next` the page's form, shows what it works out to, and saves it.
 function update(next) {
   form = next;
   render(form);
+  withStorage((storage) => storage.setItem(SAVED_DEAL_KEY, serializeForm(form)));
 }
 
 // Writes one field's text from the form into its input.
@@ -260,6 +278,8 @@ for (const button of document.querySelectorAll('[data-add-extra]')) {
 document.querySelector('[data-start-over]').addEventListener('click', () => {
   if (confirm(START_OVER_QUESTION)) {
     update(emptyForm());
+    // Clears the saved deal too, so nothing of it is left on the phone (SPEC §6.5).
+    withStorage((storage) => storage.removeItem(SAVED_DEAL_KEY));
     writeFields();
   }
 });
