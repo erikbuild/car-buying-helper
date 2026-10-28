@@ -1,5 +1,5 @@
 // ABOUTME: End-to-end checks of the Extras tab on Example 1's deal: adding, pricing, switching and removing extras.
-// ABOUTME: Checks each item's line, tip and hint, and that only the extras in the deal count toward the totals.
+// ABOUTME: Checks each item's line, tip and hints, and that only the extras in the deal with a price count toward the totals.
 import { connecticut } from '../../site/rules/connecticut.js';
 import { EXAMPLE_1_STRIP, EXAMPLE_1_TEXT, EXAMPLE_1_VERDICTS } from '../fixtures.js';
 import { test, expect, expectStrip, expectVerdicts, tapTargetsUnder44px, typeFields } from './fixtures.js';
@@ -11,8 +11,13 @@ const WARRANTY_ADDS = 'Adds $61.43/mo, $3,685.80 over 60 months ($3,185.18 with 
 // GAP's line at $895, untaxed, on Example 1's deal (§7.11).
 const GAP_WOULD_ADD = 'Would add $17.26/mo, $1,035.60 over 60 months ($895.00 with tax)';
 
-// The line on Example 1's deal of an extra whose price is blank or isn't a number, which counts as $0.
-const NOTHING_ADDED = 'Would add $0.00/mo, $0.00 over 60 months ($0.00 with tax)';
+// The line of an extra whose price is blank or isn't a number, out of the deal and in it. It counts toward nothing
+// until its price is entered (§6.4).
+const UNPRICED_WOULD_ADD = 'Would add —';
+const UNPRICED_ADDS = 'Adds —';
+
+// The hint under every extra's price (§6.4).
+const PRICE_HINT = 'The full price, not per month. If they quote $/mo, ask for the price.';
 
 // Opens the page, types Example 1 in (§7.11) and selects the Extras tab.
 async function openExtrasOnExample1(page) {
@@ -118,7 +123,7 @@ test("each add button adds its type's item, named after the type, out of the dea
       await expect(extraField(item, 'taxed'), type).toBeChecked({ checked: taxedByDefault });
       await expect(extraField(item, 'taxed'), type).toHaveAccessibleDescription(taxedHint ?? '');
       await expect(item.locator('.tip'), type).toHaveText(tip === null ? [] : [tip]);
-      await expect(item.locator('[data-extra-line]'), type).toHaveText(NOTHING_ADDED);
+      await expect(item.locator('[data-extra-line]'), type).toHaveText(UNPRICED_WOULD_ADD);
     }
     // In the order they were added.
     const types = await page.locator('[data-extras] > li')
@@ -126,6 +131,17 @@ test("each add button adds its type's item, named after the type, out of the dea
     expect(types).toEqual(Object.keys(connecticut.extraTypes));
     await expectStrip(page, EXAMPLE_1_STRIP);
   });
+
+test("every item's price has the hint that it's the full price, under it and describing it", async ({ page }) => {
+  await openExtrasOnExample1(page);
+  for (const type of Object.keys(connecticut.extraTypes)) {
+    const item = await addExtra(page, type);
+    const hint = item.locator('[data-extra-field="priceText"] + .hint');
+    await expect(hint, type).toHaveText(PRICE_HINT);
+    await expect(hint, type).toBeVisible();
+    await expect(extraField(item, 'priceText'), type).toHaveAccessibleDescription(PRICE_HINT);
+  }
+});
 
 test('each add button shows its item below the strip, with the cursor in its price', async ({ page }) => {
   await openExtrasOnExample1(page);
@@ -146,7 +162,7 @@ test('each add button shows its item below the strip, with the cursor in its pri
   }
 });
 
-test("a price that isn't a number shows its error and counts as $0", async ({ page }) => {
+test("a price that isn't a number shows its error and counts as blank", async ({ page }) => {
   await openExtrasOnExample1(page);
   const warranty = await addExtra(page, 'warranty');
   const price = extraField(warranty, 'priceText');
@@ -159,13 +175,37 @@ test("a price that isn't a number shows its error and counts as $0", async ({ pa
   await price.fill('abc');
   await expect(error).toHaveText('Enter a number, like 36,500.');
   await expect(error).toBeVisible();
-  await expect(price).toHaveAccessibleDescription('Enter a number, like 36,500.');
-  await expect(line).toHaveText(NOTHING_ADDED);
+  // The price's hint describes it first, then its error.
+  await expect(price).toHaveAccessibleDescription(`${PRICE_HINT} Enter a number, like 36,500.`);
+  await expect(line).toHaveText(UNPRICED_WOULD_ADD);
+  await expectStrip(page, EXAMPLE_1_STRIP);
 
   await price.fill('2,995');
   await expect(error).toBeEmpty();
   await expect(error).toBeHidden();
   await expect(line).toHaveText(WARRANTY_WOULD_ADD);
+});
+
+test('an extra in the deal counts only while its price is entered', async ({ page }) => {
+  await openExtrasOnExample1(page);
+  const warranty = await addExtra(page, 'warranty');
+  const price = extraField(warranty, 'priceText');
+  const line = warranty.locator('[data-extra-line]');
+  await extraField(warranty, 'inDeal').check();
+  await expect(line).toHaveText(UNPRICED_ADDS);
+  await expectStrip(page, EXAMPLE_1_STRIP);
+
+  await price.fill('2995');
+  await expect(line).toHaveText(WARRANTY_ADDS);
+  await expect(page.locator('[data-strip="drive-away"]')).toHaveText('$43,010');
+
+  // Cleared, the price counts as blank, so the deal is Example 1's again (§6.4).
+  await price.fill('');
+  await expect(line).toHaveText(UNPRICED_ADDS);
+  await expectStrip(page, EXAMPLE_1_STRIP);
+  await expect(page.locator('[data-calc="amount-financed"]')).toHaveText('$34,825.14');
+  // Example 1's Verdict, which ends with "No extras in the deal."
+  await expectVerdicts(page, EXAMPLE_1_VERDICTS);
 });
 
 test("an extra's controls have their labels and keypad, 16px text and 44px tap targets", async ({ page }) => {
@@ -207,6 +247,6 @@ test('Start over removes every extra, and one added afterwards starts fresh', as
   await expect(fresh).toHaveCount(1);
   await expect(extraField(fresh, 'priceText')).toHaveValue('');
   await expect(extraField(fresh, 'inDeal')).not.toBeChecked();
-  // With no sale price there's no loan to spread it over.
-  await expect(fresh.locator('[data-extra-line]')).toHaveText('Would add $0.00 with tax');
+  // Its price is blank, so it counts toward nothing yet.
+  await expect(fresh.locator('[data-extra-line]')).toHaveText(UNPRICED_WOULD_ADD);
 });

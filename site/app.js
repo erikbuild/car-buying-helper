@@ -27,6 +27,9 @@ const SEVERITY_WORDS = { red: 'Problem', amber: 'Check', green: 'OK', neutral: '
 
 const START_OVER_QUESTION = 'Start over? This clears the whole deal.';
 
+// The hint under every extra's price (SPEC §6.4).
+const EXTRA_PRICE_HINT = 'The full price, not per month. If they quote $/mo, ask for the price.';
+
 // Where the page saves the deal, as the form's saved text (SPEC §9).
 const SAVED_DEAL_KEY = 'car-buying-helper/deal';
 
@@ -113,20 +116,23 @@ function renderExtras(extras, deal, extraErrors) {
   }
 }
 
-// An extra's item: its name, its price with the price's error under it, the line saying what it costs, its type's
-// tip, its In the deal and Taxed switches, the hint on Taxed when its type has one, and Remove. The controls start
-// with the extra's values from the form.
+// An extra's item: its name, its price with the price's hint and error under it, the line saying what it costs, its
+// type's tip, its In the deal and Taxed switches, the hint on Taxed when its type has one, and Remove. The controls
+// start with the extra's values from the form.
 function extraItem(extra) {
   const { id, type } = extra;
   const { tip, taxedHint } = rules.extraTypes[type];
+  const priceHintId = `${id}-price-hint`;
   const errorId = `${id}-error`;
   const taxedHintId = `${id}-taxed-hint`;
   const textInput = { type: 'text', autocomplete: 'off' };
+  const priceInput = { ...textInput, inputmode: 'decimal', 'aria-describedby': `${priceHintId} ${errorId}` };
   const switchInput = { type: 'checkbox', role: 'switch' };
   const parts = [
     element('div', { class: 'field' }, extraControl(extra, 'name', 'Name', textInput)),
     element('div', { class: 'field' }, [
-      ...extraControl(extra, 'priceText', 'Price', { ...textInput, inputmode: 'decimal', 'aria-describedby': errorId }),
+      ...extraControl(extra, 'priceText', 'Price', priceInput),
+      element('p', { class: 'hint', id: priceHintId }, [EXTRA_PRICE_HINT]),
       element('p', { id: errorId, 'data-extra-error': '' }, []),
     ]),
     element('p', { 'data-extra-line': '' }, []),

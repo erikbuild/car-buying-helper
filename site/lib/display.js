@@ -158,18 +158,24 @@ export function amountFinancedLine(deal) {
 }
 
 // What an extra costs, in cents (SPEC §6.4, §7.7): "Would add $61.43/mo, $3,685.80 over 60 months ($3,185.18 with
-// tax)", starting "Adds" for an extra in the deal. With no loan to spread it over (a cash deal, months blank or their
-// rate unknown), the line is just its cost: "Would add $3,185.18 with tax".
+// tax)", starting "Adds" for an extra in the deal. With their rate worked out from their payment, both amounts are
+// lower bounds and read "at least": "Adds at least $70.88/mo, at least $4,252.80 over 60 months ($3,185.18 with tax)".
+// With no loan to spread it over (a cash deal, months blank or their rate unknown), the line is just its cost:
+// "Would add $3,185.18 with tax". While its price is blank or unreadable, it has no cost: "Would add —".
 export function extraLine(deal, extraId) {
   const { inDeal } = deal.inputs.extras.find((extra) => extra.id === extraId);
   const { costCents, perMonthCents, overLoanCents } = deal.extras.find((extra) => extra.id === extraId);
   const adds = inDeal ? 'Adds' : 'Would add';
+  if (costCents === null) {
+    return `${adds} ${MISSING_VALUE}`;
+  }
   const cost = `${formatCents(costCents)} with tax`;
   if (perMonthCents === null) {
     return `${adds} ${cost}`;
   }
-  const overLoan = `${formatCents(overLoanCents)} over ${countOf(deal.inputs.months, 'month')}`;
-  return `${adds} ${formatCents(perMonthCents)}/mo, ${overLoan} (${cost})`;
+  const atLeast = deal.theirRate.entered ? '' : 'at least ';
+  const overLoan = `${atLeast}${formatCents(overLoanCents)} over ${countOf(deal.inputs.months, 'month')}`;
+  return `${adds} ${atLeast}${formatCents(perMonthCents)}/mo, ${overLoan} (${cost})`;
 }
 
 // The key numbers at the top of the Verdict tab, as {label, value} rows (SPEC §6.5): their sale price, the drive-away

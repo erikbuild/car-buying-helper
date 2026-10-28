@@ -61,7 +61,7 @@ Numbers recalculate as you type; there's no submit button. The strip at the top 
 - If they offer a later first payment, enter both dates under **At signing: the contract** before checking the payment.
 - The −$500 and +$500 buttons try out other down payments. At a new down payment, ask for a new quote before relying on the payment check.
 
-**Extras.** Add each extra they pitch, with its price, to see what it would add per month and over the loan. Turn on **In the deal** only for the ones their numbers include.
+**Extras.** Add each extra they pitch, with its price, to see what it would add per month and over the loan. If they quote an extra per month, ask for its full price. Turn on **In the deal** only for the ones their numbers include.
 
 **Verdict.** Problems come first. Red is a problem that costs money or breaks a rule, amber is worth questioning, green checked out fine, and neutral is information or a field still to fill in. **Show the math** on each card shows the numbers behind it. A screenshot of this tab is your record. At signing, copy the contract's federal disclosure box and payment schedule into **At signing: the contract** on the Loan tab, and the Verdict checks the contract too. The signing checklist is below the cards, and **Start over** clears everything after asking you to confirm.
 

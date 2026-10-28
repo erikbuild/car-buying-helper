@@ -118,6 +118,18 @@ test('extras that are not in the deal count toward nothing', () => {
   assert.deepEqual(priceOf(dealInputs({ extras }), connecticut), priceOf(dealInputs(), connecticut));
 });
 
+test('an extra in the deal counts toward nothing, and has no cost, until its price is entered (§6.4)', () => {
+  // A warranty and a taxed GAP, one for each tax base.
+  const extras = [
+    extra('extra-1', 'warranty', null, { inDeal: true }),
+    extra('extra-2', 'gap', null, { inDeal: true, taxed: true }),
+  ];
+  const inputs = dealInputs({ extras });
+  assert.deepEqual(priceOf(inputs, connecticut), priceOf(dealInputs(), connecticut));
+  assert.equal(itemCostCents(inputs, connecticut, 'extra-1'), null);
+  assert.equal(itemCostCents(inputs, connecticut, 'extra-2'), null);
+});
+
 test('priceOf works out nothing until the sale price is entered', () => {
   assert.deepEqual(priceOf(dealInputs({ saleCents: null }), connecticut), {
     hasSale: false,

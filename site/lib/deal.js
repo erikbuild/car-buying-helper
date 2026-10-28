@@ -3,7 +3,7 @@
 import { MATCH_TOLERANCE_CENTS } from './display.js';
 import { FORTY_FIVE_DAY, HIGHEST_RATE_PERCENT, REGULAR, levelPayments, monthlyPayment, solveRate } from './loan.js';
 import { MILLI_PER_PERCENT } from './numbers.js';
-import { docFeeCostCents, extrasInDealCostCents, itemCostCents, priceOf } from './price.js';
+import { docFeeCostCents, extrasInDealCostCents, itemCostCents, priceOf, pricedExtrasInDeal } from './price.js';
 
 // Works out the values the cards, the summary strip and the tabs share from the parsed inputs (SPEC §7.3–§7.7). A
 // figure is null when it needs a loan, which is a deal with a sale price that isn't a cash deal, or needs an input
@@ -121,9 +121,10 @@ function specialRateApplies({ specialAprMilli, specialCoversMonths, months, taki
 // What a cost adds to the monthly payment, and over the loan, at their rate for the months with the regular timing
 // (SPEC §7.7). An item that isn't in the deal would add Payment(AF + cost) − Payment(AF). One in the deal adds
 // Payment(AF) − Payment(AF − cost), which is all of Payment(AF) when the cost is at least the amount financed, since
-// the payment on $0 or less is 0. Both figures are null when there's no loan to spread the cost over.
+// the payment on $0 or less is 0. Both figures are null when there's no cost, as for an extra without a price, or no
+// loan to spread it over.
 function spreadOverLoan(costCents, inDeal, loan) {
-  if (loan === null) {
+  if (costCents === null || loan === null) {
     return { perMonthCents: null, overLoanCents: null };
   }
   const { amountFinancedCents, ratePercent, months } = loan;
@@ -135,9 +136,9 @@ function spreadOverLoan(costCents, inDeal, loan) {
 }
 
 // The extras in the deal taken as one item (SPEC §7.7): their prices plus the tax they add, and what that adds to the
-// payments. Null when no extra is in the deal.
+// payments. Only the ones with a price count (SPEC §6.4), so it's null when no extra in the deal has a price.
 function extrasInDealOf(inputs, rules, loan) {
-  if (!inputs.extras.some((extra) => extra.inDeal)) {
+  if (pricedExtrasInDeal(inputs).length === 0) {
     return null;
   }
   const costCents = extrasInDealCostCents(inputs, rules);

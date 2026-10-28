@@ -19,9 +19,10 @@ function totalPriceCents(extras) {
   return extras.reduce((total, extra) => total + extra.priceCents, 0);
 }
 
-// The extras that are in the deal. The others count toward nothing.
-function extrasInDeal(inputs) {
-  return inputs.extras.filter((extra) => extra.inDeal);
+// The extras that count toward the deal: the ones in it whose price is entered. The others, out of the deal or
+// without a price, count toward nothing (§6.4).
+export function pricedExtrasInDeal(inputs) {
+  return inputs.extras.filter((extra) => extra.inDeal && extra.priceCents !== null);
 }
 
 // The part of an entered title + registration above the DMV fees for a financed car. It's a conveyance fee, so it's
@@ -32,10 +33,10 @@ function registrationExcessOf(inputs, rules) {
 
 // The deal's vehicle and service bases (§7.1). The vehicle base holds the sale price, the conveyance fees (the doc fee
 // and any registration excess) and the taxed vehicle-class extras in the deal, with a blank sale price or doc fee
-// counted as $0. The service base holds the taxed service-class extras in the deal. Rebates and the cash instead
-// reduce neither base.
+// counted as $0. The service base holds the taxed service-class extras in the deal. Only the extras with a price
+// count. Rebates and the cash instead reduce neither base.
 function taxBasesOf(inputs, rules) {
-  const taxedExtras = extrasInDeal(inputs).filter((extra) => extra.taxed);
+  const taxedExtras = pricedExtrasInDeal(inputs).filter((extra) => extra.taxed);
   const taxedPriceCents = (taxClass) =>
     totalPriceCents(taxedExtras.filter((extra) => rules.extraTypes[extra.type].taxClass === taxClass));
   const carAndFeesCents = (inputs.saleCents ?? 0) + (inputs.docFeeCents ?? 0) + registrationExcessOf(inputs, rules);
@@ -82,8 +83,8 @@ export function priceOf(inputs, rules) {
   const { vehicleBaseCents, serviceBaseCents } = taxBasesOf(inputs, rules);
   const { taxCents, vehicleBp } = taxOf(vehicleBaseCents, serviceBaseCents, rules);
   const cashTakenCents = inputs.takingCash ? (inputs.cashInsteadCents ?? 0) : 0;
-  const subtotalCents = inputs.saleCents + (inputs.docFeeCents ?? 0) + totalPriceCents(extrasInDeal(inputs)) + taxCents
-    - inputs.rebatesCents - cashTakenCents;
+  const subtotalCents = inputs.saleCents + (inputs.docFeeCents ?? 0) + totalPriceCents(pricedExtrasInDeal(inputs))
+    + taxCents - inputs.rebatesCents - cashTakenCents;
   const dmvEstimated = inputs.titleRegistrationCents === null;
   const dmvCents = dmvEstimated
     ? estimatedDmvCents(subtotalCents, inputs.downCents, rules)
@@ -119,9 +120,13 @@ function withExtraInDeal(inputs, extraId, inDeal) {
   return { ...inputs, extras: inputs.extras.map((extra) => (extra.id === extraId ? { ...extra, inDeal } : extra)) };
 }
 
-// What one extra costs, whether or not it's in the deal: its price plus the tax it adds (§7.7).
+// What one extra costs, whether or not it's in the deal: its price plus the tax it adds (§7.7), or null while its
+// price is blank.
 export function itemCostCents(inputs, rules, extraId) {
   const { priceCents } = inputs.extras.find((extra) => extra.id === extraId);
+  if (priceCents === null) {
+    return null;
+  }
   const withIt = withExtraInDeal(inputs, extraId, true);
   const withoutIt = withExtraInDeal(inputs, extraId, false);
   return costWithTaxCents(priceCents, withIt, withoutIt, rules);
@@ -136,7 +141,7 @@ export function docFeeCostCents(inputs, rules) {
 }
 
 // What the extras in the deal cost, taken as one item (§7.7): their prices plus the tax minus the tax with none of
-// them in the deal. It's $0 when no extras are in the deal.
+// them in the deal. Only the ones with a price count, so it's $0 when no extra in the deal has a price.
 export function extrasInDealCostCents(inputs, rules) {
-  return costWithTaxCents(totalPriceCents(extrasInDeal(inputs)), inputs, { ...inputs, extras: [] }, rules);
+  return costWithTaxCents(totalPriceCents(pricedExtrasInDeal(inputs)), inputs, { ...inputs, extras: [] }, rules);
 }

@@ -120,6 +120,22 @@ test("with no loan to spread it over, an extra's line is just its cost with tax"
   assert.equal(extraLine(inCashDeal, 'extra-1'), 'Adds $3,185.18 with tax');
 });
 
+test('an extra without a price would add "—", or adds "—" in the deal (§6.4)', () => {
+  const warranty = extra('extra-1', 'warranty', null);
+  assert.equal(extraLine(dealWith({ extras: [warranty] }), 'extra-1'), 'Would add —');
+  assert.equal(extraLine(dealWith({ extras: [{ ...warranty, inDeal: true }] }), 'extra-1'), 'Adds —');
+});
+
+test("with their rate worked out from their payment, an extra's amounts read at least (§6.4)", () => {
+  const lineFor = (inDeal) => {
+    const warranty = extra('extra-1', 'warranty', 299500, { inDeal });
+    return extraLine(dealWith({ theirAprMilli: null, theirPaymentCents: 85000, extras: [warranty] }), 'extra-1');
+  };
+  assert.equal(lineFor(true), 'Adds at least $70.88/mo, at least $4,252.80 over 60 months ($3,185.18 with tax)');
+  // Out of the deal, the amount financed is smaller, so their payment works out to a higher rate.
+  assert.equal(lineFor(false), 'Would add at least $77.23/mo, at least $4,633.80 over 60 months ($3,185.18 with tax)');
+});
+
 test("a 1-month loan's extra line says 1 month", () => {
   const deal = dealWith({ months: 1, extras: [extra('extra-1', 'warranty', 299500)] });
   assert.equal(extraLine(deal, 'extra-1'), 'Would add $3,200.84/mo, $3,200.84 over 1 month ($3,185.18 with tax)');

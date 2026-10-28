@@ -209,25 +209,25 @@ test('the down payment and the one the quote is tied to come from the form separ
   assert.equal(inputs.quoteDownCents, 500000);
 });
 
-test("each extra's price reads into cents, with a blank price at $0, and its other parts carry over", () => {
+test("each extra's price reads into cents, or null while it's blank, and its other parts carry over", () => {
   let form = addExtra(addExtra(typed(EXAMPLE_1_TEXT), 'warranty', connecticut), 'gap', connecticut);
   form = editExtra(form, 'extra-1', { name: 'Platinum plan', priceText: '$2,995', inDeal: true });
   const { inputs, errors, extraErrors } = readInputs(form);
   assert.deepEqual(inputs.extras, [
     { id: 'extra-1', type: 'warranty', name: 'Platinum plan', priceCents: 299500, inDeal: true, taxed: true },
-    { id: 'extra-2', type: 'gap', name: 'GAP', priceCents: 0, inDeal: false, taxed: false },
+    { id: 'extra-2', type: 'gap', name: 'GAP', priceCents: null, inDeal: false, taxed: false },
   ]);
   assert.deepEqual(errors, {});
   assert.deepEqual(extraErrors, {});
 });
 
-test("an extra's unreadable or out-of-range price shows an error under the extra's id and counts as $0", () => {
+test("an extra's unreadable or out-of-range price shows an error under the extra's id and counts as blank", () => {
   let form = addExtra(addExtra(addExtra(emptyForm(), 'warranty', connecticut), 'gap', connecticut), 'vinEtch', connecticut);
   form = editExtra(form, 'extra-1', { priceText: 'abc' });
   form = editExtra(form, 'extra-2', { priceText: '500,000.01' });
   form = editExtra(form, 'extra-3', { priceText: '400' });
   const { inputs, errors, extraErrors } = readInputs(form);
-  assert.deepEqual(inputs.extras.map((extra) => extra.priceCents), [0, 0, 40000]);
+  assert.deepEqual(inputs.extras.map((extra) => extra.priceCents), [null, null, 40000]);
   assert.deepEqual(extraErrors, { 'extra-1': UNREADABLE_AMOUNT, 'extra-2': 'Must be $500,000 or less.' });
   assert.deepEqual(errors, {});
 });

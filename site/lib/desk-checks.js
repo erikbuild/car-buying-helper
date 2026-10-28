@@ -29,7 +29,7 @@ import {
   formatRatePercent,
   formatTensDown,
 } from './numbers.js';
-import { priceOf } from './price.js';
+import { priceOf, pricedExtrasInDeal } from './price.js';
 
 const CENTS_PER_DOLLAR = 100;
 // How the notes name the longest term the special rate covers, after its field.
@@ -874,20 +874,21 @@ function dmvFeesCard(deal, rules) {
 }
 
 // Card 12, Extras (SPEC §6.5, §7.7). Always shows. The extras in the deal count as one item, with the tax they add,
-// spread over the loan at their rate. With their rate worked out from their payment, both amounts are lower bounds, so
-// they read "at least", and the amount over the loan is rounded down (§6.5, §7.0).
+// spread over the loan at their rate. Only the ones whose price is entered count (§6.4). With their rate worked out
+// from their payment, both amounts are lower bounds, so they read "at least", and the amount over the loan is rounded
+// down (§6.5, §7.0).
 function extrasCard(deal) {
   if (deal.extrasInDeal === null) {
     return card('extras', 12, {
       severity: 'green',
       headline: 'No extras in the deal.',
-      sentence: 'Extras count only once they are marked In the deal.',
+      sentence: 'Extras count only once they are marked In the deal and their price is entered.',
       math: ['Extras in the deal: none'],
     });
   }
   const { costCents, perMonthCents, overLoanCents } = deal.extrasInDeal;
   const { months } = deal.inputs;
-  const prices = deal.inputs.extras.filter((item) => item.inDeal).map((item) => formatCents(item.priceCents));
+  const prices = pricedExtrasInDeal(deal.inputs).map((item) => formatCents(item.priceCents));
   const costLines = [
     `Extras in the deal: ${prices.join(' + ')}`,
     `Their cost = their prices + the tax they add = ${formatCents(costCents)}`,

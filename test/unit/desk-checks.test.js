@@ -642,6 +642,17 @@ test('card 12: extras in the deal are amber, with what they add to the payments 
   assert.equal(cardFor('extras', { extras: [{ ...WARRANTY_IN_DEAL, inDeal: false }] }).severity, 'green');
 });
 
+test('card 12: an extra in the deal counts only once its price is entered (§6.4)', () => {
+  const gapWithoutPrice = extra('extra-2', 'gap', null, { inDeal: true });
+  const alone = cardFor('extras', { extras: [gapWithoutPrice] });
+  assert.deepEqual(verdictOf(alone), ['green', 'No extras in the deal.']);
+  assert.equal(alone.sentence, 'Extras count only once they are marked In the deal and their price is entered.');
+  // Beside a priced extra, it's left out of the card's figures and its math.
+  const withWarranty = cardFor('extras', { extras: [WARRANTY_IN_DEAL, gapWithoutPrice] });
+  assert.deepEqual(verdictOf(withWarranty), ['amber', 'Extras in the deal: $3,185.']);
+  assert.equal(withWarranty.math[0], 'Extras in the deal: $2,995.00');
+});
+
 test('card 12: with a rate worked out from their payment, both amounts read at least (§6.5, §7.0)', () => {
   // They're lower bounds, like the rate. $70.88 × 60 is $4,252.80, which rounds down.
   const card = cardFor('extras', { theirAprMilli: null, theirPaymentCents: 85000, extras: [WARRANTY_IN_DEAL] });

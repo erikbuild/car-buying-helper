@@ -44,7 +44,7 @@ function readContractDates(fields) {
 
 // Reads the form into DealInputs. A field whose text is unreadable, negative or out of range (§9) counts as blank, and
 // its message is in `errors`, by field name. An extra's price works the same way, with its message in `extraErrors`,
-// by extra id. A blank or invalid down payment, rebates or extra price counts as $0. dateHint asks for both contract
+// by extra id. A blank or invalid down payment or rebates counts as $0. dateHint asks for both contract
 // dates while only one is entered, and is null otherwise. Dates in the wrong order, or a first payment more than
 // 3 months after the contract date, put an error on firstPaymentDate.
 export function readInputs(form) {
@@ -58,7 +58,7 @@ export function readInputs(form) {
     id,
     type,
     name,
-    priceCents: noteError(extraErrors, id, parseAmount(priceText)).cents ?? 0,
+    priceCents: noteError(extraErrors, id, parseAmount(priceText)).cents,
     inDeal,
     taxed,
   }));

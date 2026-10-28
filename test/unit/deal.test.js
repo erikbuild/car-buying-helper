@@ -157,6 +157,20 @@ test('the extras in the deal add their cost to the loan, each one alone and all 
   assert.deepEqual(deal.extrasInDeal, { costCents: 318518, perMonthCents: 6143, overLoanCents: 368580 });
 });
 
+test('an extra in the deal without a price has no figures, and the deal counts no extras in it (§6.4)', () => {
+  const deal = dealWith({ extras: [extra('extra-1', 'warranty', null, { inDeal: true })] });
+  assert.deepEqual(deal.extras, [{ id: 'extra-1', costCents: null, perMonthCents: null, overLoanCents: null }]);
+  assert.equal(deal.extrasInDeal, null);
+  // Example 1's amount financed, $34,825.14.
+  assert.equal(deal.price.amountFinancedCents, 3482514);
+});
+
+test('the extras in the deal, taken as one item, count only the ones with a price', () => {
+  const warranty = extra('extra-1', 'warranty', 299500, { inDeal: true });
+  const deal = dealWith({ extras: [warranty, extra('extra-2', 'gap', null, { inDeal: true })] });
+  assert.deepEqual(deal.extrasInDeal, { costCents: 318518, perMonthCents: 6143, overLoanCents: 368580 });
+});
+
 test('an extra in the deal that costs more than the amount financed adds the whole payment', () => {
   // With $42,000 down the amount financed is $1,010.32, less than the warranty's $3,185.18 cost.
   const deal = dealWith({ downCents: 4200000, extras: [extra('extra-1', 'warranty', 299500, { inDeal: true })] });
