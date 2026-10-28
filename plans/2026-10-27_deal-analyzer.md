@@ -204,10 +204,10 @@ Each wave starts after the one before it is committed. Tasks in the same wave to
     - load the page, then wait for `navigator.serviceWorker.ready` and a controller
     - `context.setOffline(true)` and reload
     - the "Car Buying Helper" heading is visible
-  - `a new release replaces the old one`:
+  - `the next release replaces the cached one`:
     - copy `site/` into two temp dirs. In each, set RELEASE to `'A'` or `'B'` and add `<meta name="test-release" content="A">` (or `B`) to `index.html`.
-    - serve A on port 4174 with `startServer`, load the page, and wait for the controller
-    - stop A and start B on 4174. Reload, then wait until `caches.keys()` equals `['car-buying-helper-B']`. Reload again.
+    - serve A on a free port with `startServer`, load the page, and wait for the controller. (A fixed port can't work: the three browser projects run this test at the same time.)
+    - stop A and start B on A's port, so both share one origin. Reload: the page still shows A, because the worker answers from its cache first. Wait until `caches.keys()` equals `['car-buying-helper-B']`. Reload again.
     - the meta content is `B`, and the cached `index.html` text contains `content="B"`
 - [ ] **Step 3:** Run `node --test test/unit/offline-files.test.js && npx playwright test test/e2e/offline.spec.js`. Expected: FAIL.
 - [ ] **Step 4: Implement `offline.js` and the registration.**
