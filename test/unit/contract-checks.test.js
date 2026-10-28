@@ -79,6 +79,13 @@ function contractWith(fields) {
   return dealInputs({ contract: fields }).contract;
 }
 
+// Checks that each of the lines given is one of a card's "Show the math" lines.
+function assertHasLines(math, lines) {
+  for (const line of lines) {
+    assert.ok(math.includes(line), `"${line}" isn't in:\n${math.join('\n')}`);
+  }
+}
+
 test("Example 2's clean 0% contract passes cards 13–17", () => {
   const cards = contractCardsWith({ ...EXAMPLE_2_QUOTE, contract: EXAMPLE_2_CONTRACT });
   assert.deepEqual(cards.map((card) => [card.key, card.number]), [
@@ -328,6 +335,106 @@ test("a comparison whose inputs aren't all entered doesn't run", () => {
   assert.deepEqual(apr, { ran: false, failed: false, text: null });
   assert.deepEqual(payment, { ran: false, failed: false, text: null });
   assert.deepEqual([term.ran, term.failed], [true, false]);
+});
+
+test("card 17's math lists each comparison's numbers, rates to 3 decimals, and the most it allows (Example 4)", () => {
+  // SPEC §7.11 Example 4: at 5.9%, $34,825.14 over 60 payments is $671.65 a month with a first payment a month after
+  // signing, and $673.30 with one 45 days after, which is when the contract's dates put it.
+  const { contractVsQuote } = cardsWith({ ...EXAMPLE_4_QUOTE, contract: EXAMPLE_4_CONTRACT });
+  assert.deepEqual(contractVsQuote.math, [
+    'APR on the contract: 5.900%',
+    'Their APR: 5.900%',
+    "The contract's APR should be at most their APR + 0.125 points: 6.025%",
+    'Amount financed on the contract: $34,825.14',
+    'Payment on the contract: $671.65 for 60 payments',
+    'Their rate: 5.900%',
+    'At their rate with a first payment a month after signing: $671.65',
+    'At their rate with a first payment 45 days after signing: $673.30',
+    "At their rate with the contract's dates: $673.30",
+    "The contract's payment should be at most the highest of these + $1: $674.30",
+    'Number of payments on the contract: 60',
+    'Months quoted: 60',
+    'The number of payments should equal the months quoted.',
+    'A lower APR or payment is never a problem.',
+  ]);
+});
+
+test("card 17's math gives the APRs to 3 decimals, showing why a contract APR just past the 0.125 points fails", () => {
+  // 6.001% is 0.126 points over their 5.875%. The sentence keeps 2 decimals, so it reads 6% against 5.88%.
+  const { contractVsQuote } = cardsWith({
+    ...EXAMPLE_4_QUOTE,
+    theirAprMilli: 5875,
+    contract: { ...EXAMPLE_4_CONTRACT, aprMilli: 6001 },
+  });
+  assert.deepEqual(outcome(contractVsQuote), ['red', "The contract isn't the deal they quoted."]);
+  assert.equal(contractVsQuote.sentence, 'APR 6% against 5.88% quoted.');
+  assertHasLines(contractVsQuote.math, [
+    'APR on the contract: 6.001%',
+    'Their APR: 5.875%',
+    "The contract's APR should be at most their APR + 0.125 points: 6.000%",
+  ]);
+});
+
+test("card 17's math gives the rate a payment-only quote works out to: at least R to 3 decimals, or over 100%", () => {
+  // SPEC §7.11 Example 6: $699.00 for 60 months works out to at least 7.440%, which on the contract's $34,825.14 over
+  // 60 payments comes to at most $699.00. Without their APR, there's no APR comparison to show.
+  const contract = example1Contract({ aprMilli: 7570, paymentCents: 69900, paymentCount: 60 });
+  const paymentOnly = cardsWith({ theirAprMilli: null, contract }).contractVsQuote;
+  assertHasLines(paymentOnly.math, [
+    'Their rate: at least 7.440%, worked out from their payment',
+    'At their rate with a first payment 45 days after signing: $699.00',
+    "The contract's payment should be at most the highest of these + $1: $700.00",
+  ]);
+  assert.ok(paymentOnly.math.every((line) => !line.includes('APR on the contract')), paymentOnly.math.join('\n'));
+  // $6,990.00 for 60 months is worth more than $34,825.14 even at 100%.
+  const overHundred = cardsWith({ theirAprMilli: null, theirPaymentCents: 699000, contract }).contractVsQuote;
+  assertHasLines(overHundred.math, ['Their rate: over 100%, worked out from their payment']);
+});
+
+test("card 17's math gives a payment-only quote's rate as 0.000% when it rounds down to 0 at 3 decimals", () => {
+  // SPEC §13: $967.37 × 36 on $34,825.14 works out to 0.000326%. A rate that shows as 0 reads without "at least"
+  // (§7.5), and "Show the math" shows rates to 3 decimals (§7.0).
+  const contract = example1Contract({ aprMilli: 0, paymentCents: 96737, paymentCount: 36 });
+  const mathFor = (theirPaymentCents) =>
+    cardsWith({ theirAprMilli: null, months: 36, theirPaymentCents, contract }).contractVsQuote.math;
+  const nearZero = mathFor(96737);
+  assertHasLines(nearZero, ['Their rate: 0.000%, worked out from their payment']);
+  assert.ok(nearZero.every((line) => !line.includes('at least 0.000%')), nearZero.join('\n'));
+  // 36 × $960.00 is less than $34,825.14, so the rate is 0%.
+  assertHasLines(mathFor(96000), ['Their rate: 0.000%, worked out from their payment']);
+  // $967.45 × 36 works out to 0.0055%, which shows as 0 to 2 decimals but not to 3.
+  assertHasLines(mathFor(96745), ['Their rate: at least 0.005%, worked out from their payment']);
+});
+
+test("card 17's math for a failed payment or number of payments gives the numbers and the most each allows", () => {
+  // SPEC §7.11 Example 3: 5.9% on $38,010.32 over 60 payments is at most $734.88 a month, so the line is $735.88.
+  const payment = cardsWith({ contract: { ...EXAMPLE_3_CONTRACT, paymentCents: 74500 } }).contractVsQuote;
+  assertHasLines(payment.math, [
+    'Amount financed on the contract: $38,010.32',
+    'Payment on the contract: $745.00 for 60 payments',
+    'Their rate: 5.900%',
+    'At their rate with a first payment a month after signing: $733.08',
+    'At their rate with a first payment 45 days after signing: $734.88',
+    "The contract's payment should be at most the highest of these + $1: $735.88",
+  ]);
+  const contract = example1Contract({ aprMilli: 5900, paymentCents: 57551, paymentCount: 72 });
+  assertHasLines(cardsWith({ contract }).contractVsQuote.math, [
+    'Number of payments on the contract: 72',
+    'Months quoted: 60',
+    'The number of payments should equal the months quoted.',
+  ]);
+});
+
+test("card 17's note gives the math of the comparisons that ran", () => {
+  // Without their APR or their payment, only the number of payments is compared.
+  const { contractVsQuote } = cardsWith({ theirAprMilli: null, theirPaymentCents: null, contract: EXAMPLE_4_CONTRACT });
+  assert.equal(contractVsQuote.severity, 'neutral');
+  assert.deepEqual(contractVsQuote.math, [
+    'Number of payments on the contract: 60',
+    'Months quoted: 60',
+    'The number of payments should equal the months quoted.',
+    'A lower APR or payment is never a problem.',
+  ]);
 });
 
 test("a finance charge more than $1 off the box's other numbers means the box doesn't add up", () => {

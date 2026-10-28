@@ -13,6 +13,13 @@ const DAYS_PER_MONTH = 30;
 const MONTHS_PER_YEAR = 12;
 // Entered rates are thousandths of a percent: 5900 is 5.9%.
 const MILLI_PER_PERCENT = 1000;
+// What "Show the math" calls each desk timing, in the order the Deal lists them: the regular timing, the 45-day timing,
+// then the contract dates' timing when they're entered (SPEC §7.3).
+const DESK_TIMING_NAMES = [
+  'a first payment a month after signing',
+  'a first payment 45 days after signing',
+  "the contract's dates",
+];
 
 // The contract fields the cards need, as their notes name them, in the order the contract section lists them.
 const CONTRACT_FIELD_NAMES = {
@@ -281,7 +288,7 @@ function quoteOutcome(deal, reference) {
   const comparisons = quoteComparisons(deal, reference);
   const { apr, payment, term } = comparisons;
   const ran = [apr, payment, term].filter((comparison) => comparison.ran);
-  const math = [...ran.map((comparison) => comparison.text), 'A lower APR or payment is never a problem.'];
+  const math = quoteMath(deal, reference, comparisons);
   const failures = ran.filter((comparison) => comparison.failed);
   if (failures.length > 0) {
     return {
@@ -309,6 +316,71 @@ function quoteOutcome(deal, reference) {
   return missingInputNote(inputsText, 'compare the contract with their quote', sentence, math);
 }
 
+// Card 17's "Show the math" (SPEC §6.5): for each comparison that ran, the numbers it compared, with rates to 3
+// decimals (§7.0), and the most it allows, whether it passed or failed.
+function quoteMath(deal, reference, { apr, payment, term }) {
+  return [
+    ...(apr.ran ? aprComparisonMath(deal.inputs, reference) : []),
+    ...(payment.ran ? paymentComparisonMath(deal) : []),
+    ...(term.ran ? termComparisonMath(deal.inputs) : []),
+    'A lower APR or payment is never a problem.',
+  ];
+}
+
+// Comparison 1's math (SPEC §7.10): the two APRs, and their APR + 0.125 points, the most the contract's may be.
+function aprComparisonMath({ theirAprMilli, contract }, reference) {
+  const toleranceMilli = reference.regZ.aprToleranceMilli;
+  return [
+    `APR on the contract: ${formatRateMilli(contract.aprMilli, 3)}`,
+    `Their APR: ${formatRateMilli(theirAprMilli, 3)}`,
+    `The contract's APR should be at most their APR + ${toleranceMilli / MILLI_PER_PERCENT} points: `
+      + formatRateMilli(theirAprMilli + toleranceMilli, 3),
+  ];
+}
+
+// Comparison 2's math (SPEC §7.10): the contract's payment, and what their rate gives on the contract's amount financed
+// for its number of payments with each desk timing. The highest of those + $1 is the most the contract's may be.
+function paymentComparisonMath(deal) {
+  const { amountFinancedCents, paymentCents, paymentCount } = deal.inputs.contract;
+  const payments = paymentsAtTheirRate(deal);
+  return [
+    `Amount financed on the contract: ${formatCents(amountFinancedCents)}`,
+    `Payment on the contract: ${formatCents(paymentCents)} for ${countOf(paymentCount, 'payment')}`,
+    `Their rate: ${theirRateMathText(deal)}`,
+    ...payments.map((cents, index) => `At their rate with ${DESK_TIMING_NAMES[index]}: ${formatCents(cents)}`),
+    "The contract's payment should be at most the highest of these + $1: "
+      + formatCents(Math.max(...payments) + MATCH_TOLERANCE_CENTS),
+  ];
+}
+
+// Comparison 3's math (SPEC §7.10): the number of payments and the months quoted.
+function termComparisonMath({ months, contract }) {
+  return [
+    `Number of payments on the contract: ${contract.paymentCount}`,
+    `Months quoted: ${months}`,
+    'The number of payments should equal the months quoted.',
+  ];
+}
+
+// Their rate for "Show the math", to 3 decimals (SPEC §7.0): their APR, or the rate worked out from their payment,
+// rounded down. Needs their rate to be known.
+function theirRateMathText({ inputs, theirRate }) {
+  if (theirRate.entered) {
+    return formatRateMilli(inputs.theirAprMilli, 3);
+  }
+  return `${workedOutRateMathText(theirRate)}, worked out from their payment`;
+}
+
+// R, the rate worked out from their payment, for "Show the math", to 3 decimals rounded down (SPEC §7.0, §7.5):
+// "at least 7.440%", or "0.000%" without "at least" when it shows as 0, or "over 100%".
+function workedOutRateMathText({ percent, over100 }) {
+  if (over100) {
+    return 'over 100%';
+  }
+  const rate = formatRatePercent(percent, 'down', 3);
+  return rate === formatRatePercent(0, 'down', 3) ? rate : `at least ${rate}`;
+}
+
 // Comparison 1 (SPEC §7.10): the contract APR against their APR, when both are entered.
 function aprComparison({ theirAprMilli, contract }, reference) {
   if (theirAprMilli === null || contract.aprMilli === null) {
@@ -324,14 +396,13 @@ function aprComparison({ theirAprMilli, contract }, reference) {
 // Comparison 2 (SPEC §7.10): the contract payment against the most their rate gives on the contract's amount financed
 // for its number of payments, over the desk timings, plus $1. It uses the contract's own amount financed, so an amount
 // added to the loan is reported once, by card 13.
-function paymentComparison({ inputs, theirRate, deskTimings }) {
+function paymentComparison(deal) {
+  const { inputs, theirRate } = deal;
   const { amountFinancedCents, paymentCents, paymentCount } = inputs.contract;
   if (theirRate === null || amountFinancedCents === null || paymentCents === null || paymentCount === null) {
     return NOT_COMPARED;
   }
-  const mostCents = Math.max(
-    ...deskTimings.map((timing) => monthlyPayment(amountFinancedCents, theirRate.percent, paymentCount, timing)),
-  );
+  const mostCents = Math.max(...paymentsAtTheirRate(deal));
   const lineCents = mostCents + MATCH_TOLERANCE_CENTS;
   // A rate worked out from their payment is a lower bound, so the quote it came from stands for it.
   const rate = theirRate.entered ? formatRateMilli(inputs.theirAprMilli) : 'their quote';
@@ -342,6 +413,13 @@ function paymentComparison({ inputs, theirRate, deskTimings }) {
   }
   const text = `${contractPayment}, at or under ${formatCents(lineCents)}: ${most}, plus $1.`;
   return { ran: true, failed: false, text };
+}
+
+// The payment their rate gives on the contract's amount financed for its number of payments, with each desk timing
+// (SPEC §7.3), in the Deal's order of desk timings. Needs their rate and those contract fields.
+function paymentsAtTheirRate({ inputs, theirRate, deskTimings }) {
+  const { amountFinancedCents, paymentCount } = inputs.contract;
+  return deskTimings.map((timing) => monthlyPayment(amountFinancedCents, theirRate.percent, paymentCount, timing));
 }
 
 // Comparison 3 (SPEC §7.10): the number of payments against the months, when both are entered.
