@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { startedAsCommand } from '../tools/command-line.js';
 
 const CONTENT_TYPES = {
   '.html': 'text/html',
@@ -49,7 +49,7 @@ export function startServer(rootDir, port, { basePath = '/car-buying-helper/', c
   });
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (startedAsCommand(import.meta.url)) {
   const [rootDir, port] = process.argv.slice(2);
   await startServer(rootDir, Number(port));
   console.log(`Serving ${rootDir} at http://localhost:${port}/car-buying-helper/`);

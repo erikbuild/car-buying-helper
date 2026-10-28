@@ -1,7 +1,7 @@
 // ABOUTME: Writes the release name into the offline cache's script, so phones pick up each deploy as a new release.
 // ABOUTME: Run `node tools/stamp-release.js <release>` to edit site/offline.js in place; the deploy passes the commit ID.
-import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { startedAsCommand } from './command-line.js';
 
 const RELEASE_PLACEHOLDER = "const RELEASE = 'development';";
 const OFFLINE_SCRIPT = new URL('../site/offline.js', import.meta.url);
@@ -16,9 +16,8 @@ export function stampRelease(text, release) {
   return parts.join(`const RELEASE = '${release}';`);
 }
 
-// Runs as a command only when Node was started with this file. Node names this module by its real path,
-// so the path Node was started with is resolved through any symlinks, such as macOS's /tmp, before comparing.
-if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Runs as a command only when Node was started with this file.
+if (startedAsCommand(import.meta.url)) {
   const [release] = process.argv.slice(2);
   if (!release) {
     console.error('Usage: node tools/stamp-release.js <release>');

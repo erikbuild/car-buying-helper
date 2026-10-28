@@ -11,15 +11,16 @@ import { stampRelease } from '../../tools/stamp-release.js';
 
 const offlineScriptPath = fileURLToPath(new URL('../../site/offline.js', import.meta.url));
 const toolPath = fileURLToPath(new URL('../../tools/stamp-release.js', import.meta.url));
+const commandLinePath = fileURLToPath(new URL('../../tools/command-line.js', import.meta.url));
 const PLACEHOLDER = "const RELEASE = 'development';";
 
 function occurrences(text, part) {
   return text.split(part).length - 1;
 }
 
-// Copies the stamp tool and site/offline.js into a temporary folder laid out like the repo, and returns
-// a path to that folder through a symlink, as macOS's temporary folder is. Running the copied tool
-// edits the copy of offline.js.
+// Copies the stamp tool, the module it imports and site/offline.js into a temporary folder laid out like
+// the repo, and returns a path to that folder through a symlink, as macOS's temporary folder is. Running
+// the copied tool edits the copy of offline.js.
 function makeRepoCopy(t) {
   const dir = mkdtempSync(path.join(tmpdir(), 'stamp-release-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -28,6 +29,7 @@ function makeRepoCopy(t) {
   mkdirSync(path.join(repo, 'site'));
   writeFileSync(path.join(repo, 'package.json'), '{ "type": "module" }\n');
   copyFileSync(toolPath, path.join(repo, 'tools', 'stamp-release.js'));
+  copyFileSync(commandLinePath, path.join(repo, 'tools', 'command-line.js'));
   copyFileSync(offlineScriptPath, path.join(repo, 'site', 'offline.js'));
   const link = path.join(dir, 'link');
   symlinkSync(repo, link);

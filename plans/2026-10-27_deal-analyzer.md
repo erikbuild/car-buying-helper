@@ -108,6 +108,7 @@ site/lib/contract-checks.js cards 13–17                                       
 site/lib/checks.js         card order, start note                               Task 14
 tools/make-icons.js        draws the PNG icons                                  Task 1
 tools/stamp-release.js     writes the release name into offline.js              Task 18
+tools/command-line.js      whether Node was started with a module               Task 19
 test/serve.js              static server for e2e (base path /car-buying-helper/) Task 1
 test/fixtures.js           Example 1 as DealInputs                              Task 8
 test/unit/*.test.js, test/integration/examples.test.js, test/e2e/*.spec.js
