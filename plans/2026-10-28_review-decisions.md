@@ -42,7 +42,7 @@ Tasks 20 → 21 → 22, one at a time. They share files.
 **Files:**
 - Modify: `site/lib/deal.js`, `site/lib/desk-checks.js`
 - Test: `test/unit/deal.test.js`, `test/unit/desk-checks.test.js`, `test/fixtures.js` (`EXAMPLE_1_PAYMENT_SENTENCE`)
-- Also, only where their expectations change: `test/integration/examples.test.js`, `test/unit/contract-checks.test.js`, `test/unit/checks.test.js`, `test/e2e/*.spec.js`
+- Also, only where their expectations change: `test/integration/examples.test.js`, `test/unit/contract-checks.test.js`, `test/unit/display.test.js`, `test/unit/checks.test.js`, `test/e2e/*.spec.js`
 
 **Interfaces:**
 - `rateFromPayment(paymentCents, months, loanCents, timings)` in `deal.js` returns `{percent, over100}`, or `null` when `paymentCents` is less than the 0% payment `monthlyPayment(loanCents, 0, months)` minus $1. In that case the payment can't pay off the loan at any rate. Otherwise it behaves as it does now.
@@ -126,7 +126,7 @@ Tasks 20 → 21 → 22, one at a time. They share files.
     - Rename the test "a price that isn't a number shows its error and counts as $0" to say it counts as blank. Its expectations become "Would add —" and the strip without the item.
     - Each item shows the price hint, and the price input's accessible description starts with it.
     - An extra marked In the deal and then given a price, then cleared, stops counting: the strip and card 12 go back to Example 1's.
-- [ ] **Step 2: Run the tests and confirm they fail as expected.** Run `node --test test/unit` and `npx playwright test test/e2e/extras.spec.js --output=test-results/task-21`.
+- [ ] **Step 2: Run the tests and confirm they fail as expected.** Run `node --test "test/unit/**/*.test.js"` and `npx playwright test test/e2e/extras.spec.js --output=test-results/task-21`.
 - [ ] **Step 3: Implement.**
   - Fix comments that still say an extra's price counts as $0, in `inputs.js` and wherever else they say it.
   - Add one sentence to the README's Extras paragraph: if they quote an extra per month, ask for its full price.
@@ -138,9 +138,9 @@ Tasks 20 → 21 → 22, one at a time. They share files.
 **Spec:** §6.3, §7.3, §11, §13.
 
 **Files:**
-- Modify: `site/index.html`, `site/lib/inputs.js`, `README.md` (the At the dealer walkthrough)
+- Modify: `site/index.html`, `site/lib/inputs.js`, `site/lib/display.js` and `site/lib/contract-checks.js` (the shared first period in words), `site/app.js` (a comment), `README.md` (the At the dealer walkthrough)
 - Test: `test/unit/inputs.test.js`, `test/e2e/layout.spec.js`, `test/e2e/deal.spec.js`
-- Also, only where their expectations change: `test/e2e/saving.spec.js`
+- Also, only where their expectations change: `test/integration/examples.test.js`, `test/e2e/saving.spec.js`
 
 **Interfaces:**
 - Down payment hint:
@@ -150,7 +150,7 @@ Tasks 20 → 21 → 22, one at a time. They share files.
   - For a valid pair: "First payment {period} after the contract date.", where {period} is §7.3's m and d as "1 month and 15 days", "20 days" (m = 0) or "2 months" (d = 0), in the singular for 1.
   - "Enter both dates." with one date, as now.
   - `null` for a pair that isn't valid, as now. Errors stay on `firstPaymentDate`.
-  - Reuse `countOf` from `display.js` for the counts, unless importing it would make a cycle. In that case, say so in your report.
+  - {period} comes from `firstPeriodText({m, d})`, which the contract cards' math also uses. It lives in `display.js` next to `countOf`, and `contract-checks.js` and `inputs.js` import it.
 
 - [ ] **Step 1: Write the failing tests.**
   - `inputs.test.js`:
@@ -161,7 +161,8 @@ Tasks 20 → 21 → 22, one at a time. They share files.
       - 2027-01-15 → 2027-02-28: "First payment 1 month and 16 days after the contract date."
       - 2028-01-30 → 2028-03-30: "First payment 2 months after the contract date."
     - Plus:
-      - 2026-10-30 → 2026-11-30: "First payment 1 month after the contract date."
+      - 2026-10-30 → 2026-11-30: "First payment 1 month and 1 day after the contract date." November 30 is the month's last day, so §7.3 counts a month back to October 31.
+      - 2026-10-15 → 2026-11-15: "First payment 1 month after the contract date."
       - 2026-10-30 → 2026-10-31: "First payment 1 day after the contract date."
       - 2026-10-30 → 2027-01-30: "First payment 3 months after the contract date."
     - 2026-10-30 → 2027-01-31 and a wrong-order pair give `dateHint: null`.
