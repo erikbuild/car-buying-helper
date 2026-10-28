@@ -385,6 +385,11 @@ legend {
   font-weight: 700;
 }
 
+/* The contract dates' hint is the contract's last line, so it keeps the space below it that a field has. */
+[data-hint-for="contractDates"] {
+  margin-block-end: 1rem;
+}
+
 .button-group {
   display: flex;
   flex-wrap: wrap;

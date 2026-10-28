@@ -138,6 +138,22 @@ test('fields show their hints and placeholders, and each hint and error line des
     .toHaveAccessibleDescription('Enter both dates. Error in firstPaymentDate.');
 });
 
+test("the contract dates' hint has the same space below it as the contract's last field", async ({ page }) => {
+  await page.goto('./');
+  const contract = page.locator('#contract');
+  const spaceBelow = async (part) => {
+    const [box, partBox] = [await contract.boundingBox(), await part.boundingBox()];
+    return box.y + box.height - (partBox.y + partBox.height);
+  };
+  await page.getByRole('tab', { name: 'Loan' }).click();
+  await contract.locator(':scope > summary').click();
+  const belowLastField = await spaceBelow(contract.locator(':scope > .field').last());
+  await page.locator('#contractDate').fill('2026-10-30');
+  const hint = page.locator('[data-hint-for="contractDates"]');
+  await expect(hint).toHaveText('Enter both dates.');
+  expect(await spaceBelow(hint)).toBeCloseTo(belowLastField, 0);
+});
+
 test('the page has every element the app fills in or listens to', async ({ page }) => {
   await page.goto('./');
   await showEverything(page);
