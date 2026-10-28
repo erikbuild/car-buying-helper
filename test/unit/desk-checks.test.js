@@ -479,6 +479,8 @@ test('card 7: their sale price against the sticker, with the KBB line on the gre
   const under = cardFor('sticker', { stickerCents: 3800000 });
   assert.deepEqual(verdictOf(under), ['green', '$1,500 (3.9%) under sticker.']);
   assert.equal(under.context, reference.kbb.text);
+  // The math shows how the headline's percent is worked out.
+  assert.equal(under.math.at(-1), 'Under sticker: $1,500.00 ÷ $38,000.00 = 3.9%');
   const at = cardFor('sticker', { stickerCents: 3650000 });
   assert.deepEqual(verdictOf(at), ['green', 'At sticker.']);
   assert.equal(at.context, reference.kbb.text);

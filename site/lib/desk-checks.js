@@ -709,7 +709,8 @@ function stickerCard(deal, reference) {
   const discountCents = -differenceCents;
   const percent = percentOfStickerText(discountCents, stickerCents);
   const headline = `${formatDollars(discountCents)} (${percent}) under sticker.`;
-  return card('sticker', 7, { severity: 'green', headline, sentence, context, math });
+  const percentLine = `Under sticker: ${formatCents(discountCents)} ÷ ${formatCents(stickerCents)} = ${percent}`;
+  return card('sticker', 7, { severity: 'green', headline, sentence, context, math: [...math, percentLine] });
 }
 
 // Card 8, Tax (SPEC §6.5, §7.1). Shows when their tax is entered.
