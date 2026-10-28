@@ -7,28 +7,14 @@ import { contractAprResults, contractSchedule, quoteComparisons } from '../../si
 import { deriveDeal } from '../../site/lib/deal.js';
 import { specialVsCash } from '../../site/lib/desk-checks.js';
 import { amountFinancedLine, extraLine, keyNumbers, priceTabLines, summaryStrip } from '../../site/lib/display.js';
-import { addExtra, editExtra, editField, emptyForm, setTakingCash } from '../../site/lib/form.js';
+import { addExtra, editExtra, emptyForm, setTakingCash } from '../../site/lib/form.js';
 import { readInputs } from '../../site/lib/inputs.js';
 import { monthlyPayment } from '../../site/lib/loan.js';
 import { formatCents, formatRatePercent } from '../../site/lib/numbers.js';
 import { connecticut } from '../../site/rules/connecticut.js';
 import { reference } from '../../site/rules/reference.js';
 import { assertWithin } from '../assertions.js';
-
-// Example 1's fields as typed (§7.11): a $36,500 sale with a $699 doc fee and $5,000 down, quoted at 5.9% for
-// 60 months at $699, with a 0% special for loans up to 36 months or $1,000 cash instead, and a 5.5% outside rate.
-const EXAMPLE_1_FIELDS = {
-  salePrice: '$36,500',
-  docFee: '699',
-  downPayment: '5,000',
-  theirApr: '5.9',
-  months: '60',
-  theirPayment: '699',
-  specialApr: '0',
-  specialCoversMonths: '36',
-  cashInstead: '1,000',
-  outsideApr: '5.5',
-};
+import { EXAMPLE_1_TEXT, typed } from '../fixtures.js';
 
 // The contract dates of Examples 2–4: the first payment 1 month and 15 days after signing.
 const CONTRACT_DATES = { contractDate: '2026-10-30', firstPaymentDate: '2026-12-14' };
@@ -70,15 +56,10 @@ const EXAMPLE_1_SPECIAL_OR_CASH = {
   breakEven: '1.9005%',
 };
 
-// The form with each field's text typed in, in the order given.
-function typed(form, fields) {
-  return Object.entries(fields).reduce((current, [name, text]) => editField(current, name, text), form);
-}
-
 // Example 1's form, with `fields` typed over it. The down payment is typed before their payment, so the quote is tied
 // to the down payment the example gives.
 function exampleForm(fields = {}) {
-  return typed(typed(emptyForm(), EXAMPLE_1_FIELDS), fields);
+  return typed(fields, typed(EXAMPLE_1_TEXT));
 }
 
 // What the page shows for a form: the deal it reads, the Verdict cards and the summary strip. Every form here holds
@@ -509,7 +490,7 @@ test('every mix of blank fields shows only whole text, and nothing throws (Revie
   const example3 = exampleForm(EXAMPLE_3_CONTRACT_FIELDS);
   for (let blanks = 0; blanks < 2 ** SWEPT_FIELDS.length; blanks += 1) {
     const cleared = SWEPT_FIELDS.filter((_, index) => (blanks & (1 << index)) !== 0);
-    const form = typed(example3, Object.fromEntries(cleared.map((name) => [name, ''])));
+    const form = typed(Object.fromEntries(cleared.map((name) => [name, ''])), example3);
     assertWholeText(form, `${cleared.join(', ') || 'no fields'} blank`);
   }
 });

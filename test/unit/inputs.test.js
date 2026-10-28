@@ -5,31 +5,12 @@ import assert from 'node:assert/strict';
 import { addExtra, editExtra, editField, emptyForm, setTakingCash, stepDownPayment } from '../../site/lib/form.js';
 import { readInputs } from '../../site/lib/inputs.js';
 import { connecticut } from '../../site/rules/connecticut.js';
-import { dealInputs } from '../fixtures.js';
+import { EXAMPLE_1_TEXT, dealInputs, typed } from '../fixtures.js';
 
 const ENTER_BOTH_DATES = 'Enter both dates.';
 const DATES_OUT_OF_ORDER = 'The first payment date must be after the contract date.';
 const MORE_THAN_3_MONTHS_AFTER = 'More than 3 months after the contract date. Check the dates.';
 const UNREADABLE_AMOUNT = 'Enter a number, like 36,500.';
-
-// Example 1's fields (SPEC §7.11) as Erik types them, in the order he types them. Every other field is blank.
-const EXAMPLE_1_TEXT = {
-  salePrice: '$36,500',
-  docFee: '699',
-  downPayment: '5,000',
-  theirApr: '5.9',
-  months: '60',
-  theirPayment: '699',
-  specialApr: '0',
-  specialCoversMonths: '36',
-  cashInstead: '1,000',
-  outsideApr: '5.5',
-};
-
-// An empty form with each field in `texts` typed in, in the order given.
-function typed(texts) {
-  return Object.entries(texts).reduce((form, [name, text]) => editField(form, name, text), emptyForm());
-}
 
 // Reads an empty form with only this one field typed in.
 function readOne(name, text) {
