@@ -1,0 +1,47 @@
+# ABOUTME: Tests the page on every push to main, then publishes site/ with GitHub Pages.
+# ABOUTME: Only after every test passes does it write the commit ID into site/offline.js as the release name.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time. A deploy that has started finishes before the next one begins.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Unit and integration tests
+        run: npm test
+      - name: Install the test browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: End-to-end tests
+        run: npm run test:e2e
+      - name: Write the commit ID into offline.js as the release name
+        run: node tools/stamp-release.js "$GITHUB_SHA"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
