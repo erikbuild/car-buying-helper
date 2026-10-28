@@ -237,10 +237,17 @@ test("each card's Show the math is a 44px tap target that covers none of the car
   await page.getByRole('tab', { name: 'Verdict' }).click();
   await expect(page.locator('[data-cards] > article')).toHaveCount(11);
 
-  // Each card's faults: its toggle is under 44px tall (§9), or a line of its words runs into the toggle.
+  // Each card's faults: its toggle is under 44px tall (§9), a line of its words runs into the toggle, or its
+  // headline's first line ends above the toggle's bottom. A second headline line then starts beside the toggle, and
+  // whether its words reach into the toggle depends on the font's metrics, which differ between systems.
   const faults = await page.locator('[data-cards] > article').evaluateAll((cards) => cards.flatMap((card) => {
     const toggle = card.querySelector('details > summary').getBoundingClientRect();
     const found = toggle.height < 44 ? [`${card.dataset.card}: Show the math is ${toggle.height}px tall`] : [];
+    const headline = card.querySelector(':scope > h3');
+    const firstLineBottom = headline.getBoundingClientRect().top + parseFloat(getComputedStyle(headline).lineHeight);
+    if (firstLineBottom < toggle.bottom) {
+      found.push(`${card.dataset.card}: a second line of its headline would start beside Show the math`);
+    }
     for (const part of card.querySelectorAll(':scope > :not(details)')) {
       const words = document.createRange();
       words.selectNodeContents(part);

@@ -436,7 +436,9 @@ article[data-severity] {
   /* The width "Show the math" takes in the card's top corner. */
   --math-toggle-width: 7.25rem;
   position: relative;
-  padding: 0.375rem 0.75rem;
+  /* The top padding, the severity word's line and the headline's first line reach past the bottom of the 44px
+     "Show the math" toggle, so a second headline line starts below the toggle whatever the font. */
+  padding: 0.5rem 0.75rem 0.375rem;
   border: 1px solid var(--line);
   border-inline-start: 0.375rem solid var(--severity-color);
   border-radius: 0.5rem;
@@ -489,13 +491,14 @@ article[data-severity] > p {
   margin-block-start: 0.125rem;
 }
 
-/* "Show the math" sits in the card's top corner, at the end of the severity word's line, and stays 44px tall. */
+/* "Show the math" sits in the card's top corner, at the end of the severity word's line, and stays 44px tall. Its
+   top padding is the card's, so its text sits level with the severity word. */
 article[data-severity] summary {
   position: absolute;
   inset-block-start: 0;
   inset-inline-end: 0;
   inline-size: var(--math-toggle-width);
-  padding: 0.375rem 0.75rem 0 0;
+  padding: 0.5rem 0.75rem 0 0;
   color: var(--muted);
   font-size: 0.8125rem;
   text-align: end;
