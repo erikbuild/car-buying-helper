@@ -3,14 +3,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FORTY_FIVE_DAY, REGULAR, levelPayments, monthlyPayment, presentValue, solveRate } from '../../site/lib/loan.js';
+import { assertWithin } from '../assertions.js';
 
 // Example 1's amount financed, $34,825.14 (SPEC §7.11).
 const AF = 3482514;
-
-// Checks that actual is less than tolerance away from expected.
-function assertWithin(actual, expected, tolerance) {
-  assert.ok(Math.abs(actual - expected) < tolerance, `expected ${expected} ± ${tolerance}, got ${actual}`);
-}
 
 test('REGULAR and FORTY_FIVE_DAY are frozen, so no caller can change the shared timings', () => {
   assert.ok(Object.isFrozen(REGULAR));

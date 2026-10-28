@@ -4,14 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { docFeeCostCents, extrasInDealCostCents, itemCostCents, priceOf, taxOf } from '../../site/lib/price.js';
 import { connecticut } from '../../site/rules/connecticut.js';
-import { dealInputs } from '../fixtures.js';
-
-// An extra as DealInputs holds it, named after its type. It's out of the deal and has its type's default Taxed
-// setting unless `changes` says otherwise.
-function extra(id, type, priceCents, changes = {}) {
-  const { label, taxedByDefault } = connecticut.extraTypes[type];
-  return { id, type, name: label, priceCents, inDeal: false, taxed: taxedByDefault, ...changes };
-}
+import { dealInputs, extra } from '../fixtures.js';
 
 // Checks the fields that `expected` names in the price of Example 1's deal with `overrides` applied.
 function assertPrice(overrides, expected) {

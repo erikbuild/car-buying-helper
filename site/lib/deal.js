@@ -1,10 +1,7 @@
 // ABOUTME: Derives the values the Verdict checks share from the parsed inputs.
 // ABOUTME: Covers the expected payment range, the rate worked out from a payment and what each extra adds.
-import { FORTY_FIVE_DAY, REGULAR, levelPayments, monthlyPayment, solveRate } from './loan.js';
+import { FORTY_FIVE_DAY, HIGHEST_RATE_PERCENT, REGULAR, levelPayments, monthlyPayment, solveRate } from './loan.js';
 import { docFeeCostCents, extrasInDealCostCents, itemCostCents, priceOf } from './price.js';
-
-// The top of the range rates are solved in. A rate worked out as over it counts as it (SPEC §7.5).
-const HIGHEST_RATE_PERCENT = 100;
 
 // Works out the values the cards, the summary strip and the tabs share from the parsed inputs (SPEC §7.3–§7.7). A
 // figure is null when it needs a loan, which is a deal with a sale price that isn't a cash deal, or needs an input
@@ -81,6 +78,7 @@ function rateFromPayment(paymentCents, months, loanCents, timings) {
     .map((timing) => solveRate(payments, loanCents, timing))
     .filter((result) => !result.tooHigh)
     .map((result) => result.percent);
+  // A rate worked out as over the top of the range counts as the top (SPEC §7.5).
   if (percents.length === 0) {
     return { percent: HIGHEST_RATE_PERCENT, zero: false, over100: true };
   }

@@ -6,23 +6,12 @@ import { deriveDeal } from '../../site/lib/deal.js';
 import { FORTY_FIVE_DAY, REGULAR } from '../../site/lib/loan.js';
 import { priceOf } from '../../site/lib/price.js';
 import { connecticut } from '../../site/rules/connecticut.js';
-import { dealInputs } from '../fixtures.js';
-
-// An extra as DealInputs holds it, named after its type. It's out of the deal and has its type's default Taxed
-// setting unless `changes` says otherwise.
-function extra(id, type, priceCents, changes = {}) {
-  const { label, taxedByDefault } = connecticut.extraTypes[type];
-  return { id, type, name: label, priceCents, inDeal: false, taxed: taxedByDefault, ...changes };
-}
+import { assertWithin } from '../assertions.js';
+import { dealInputs, extra } from '../fixtures.js';
 
 // The deal for Example 1's inputs with `overrides` applied.
 function dealWith(overrides) {
   return deriveDeal(dealInputs(overrides), connecticut);
-}
-
-// Checks that actual is less than tolerance away from expected.
-function assertWithin(actual, expected, tolerance) {
-  assert.ok(Math.abs(actual - expected) < tolerance, `expected ${expected} ± ${tolerance}, got ${actual}`);
 }
 
 test("deriveDeal works out Example 1's should-be payment, expected range, rate and doc fee cost", () => {

@@ -287,6 +287,7 @@ parseCalendarDate('2026-02-30') null; ('2026-13-01') null; ('') null; ('2026-10-
 - Consumes: `divideHalfUp` (Task 3).
 - Produces:
   - `REGULAR` and `FORTY_FIVE_DAY`, both frozen.
+  - `HIGHEST_RATE_PERCENT = 100`, the top of the range rates are solved in.
   - `presentValue(paymentsCents, ratePercent, timing) → number`, in cents, unrounded.
   - `monthlyPayment(amountCents, ratePercent, n, timing = REGULAR) → integer`. It returns 0 when the amount is 0 or less, and `divideHalfUp(amount, n)` at 0%.
   - `levelPayments(paymentCents, n, finalCents = null) → number[]`: n payments of paymentCents, then finalCents when it's given (n + 1 payments in all).

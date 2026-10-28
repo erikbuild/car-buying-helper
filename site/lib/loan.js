@@ -7,7 +7,7 @@ export const REGULAR = Object.freeze({ m: 1, d: 0 });
 export const FORTY_FIVE_DAY = Object.freeze({ m: 1, d: 15 });
 
 // A solved rate lies from 0% to this APR, in percent (SPEC §7.5).
-const HIGHEST_RATE_PERCENT = 100;
+export const HIGHEST_RATE_PERCENT = 100;
 // Solving stops once the rate's bracket is narrower than this, in percentage points (SPEC §7.5).
 const RATE_PRECISION_POINTS = 1e-7;
 

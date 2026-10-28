@@ -1,5 +1,6 @@
 // ABOUTME: Example 1 from SPEC.md §7.11 as parsed deal inputs, the deal the unit tests start from.
-// ABOUTME: Tests pass overrides to change it; contract overrides change only the contract fields they name.
+// ABOUTME: Tests pass overrides, and extras made with extra(), to change it; contract overrides change only the contract fields they name.
+import { connecticut } from '../site/rules/connecticut.js';
 
 // Example 1's deal as DealInputs: a $36,500 sale with a $699 doc fee and $5,000 down, quoted at 5.9% for 60 months
 // at $699.00, with a 0% special for loans up to 36 months or $1,000 cash instead, and a 5.5% outside rate. The quote
@@ -40,4 +41,11 @@ export function dealInputs(overrides = {}) {
       ...contract,
     },
   };
+}
+
+// An extra as DealInputs holds it, named after its type. It's out of the deal and has its type's default Taxed
+// setting unless `changes` says otherwise.
+export function extra(id, type, priceCents, changes = {}) {
+  const { label, taxedByDefault } = connecticut.extraTypes[type];
+  return { id, type, name: label, priceCents, inDeal: false, taxed: taxedByDefault, ...changes };
 }
