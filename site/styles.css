@@ -257,6 +257,11 @@ input[type="checkbox"][role="switch"]:checked {
   display: none;
 }
 
+/* Keeps text on one line, like the down payment hint's −$500/+$500. */
+.nowrap {
+  white-space: nowrap;
+}
+
 /* An input with buttons beside it, like the down payment's −$500 and +$500. */
 .input-row {
   display: flex;

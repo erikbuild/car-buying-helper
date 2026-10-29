@@ -155,6 +155,34 @@ test("the contract dates' hint has the same space below it as the contract's las
   expect(await spaceBelow(hint)).toBeCloseTo(belowLastField, 0);
 });
 
+test('the down payment hint keeps −$500/+$500 on one line at every phone width', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('tab', { name: 'Loan' }).click();
+  const hint = page.locator('[data-hint-for="downPayment"]');
+  for (let width = 320; width <= 440; width += 1) {
+    await page.setViewportSize({ width, height: 852 });
+    // The top of each box the phrase is laid out in, or null when no one text node of the hint holds all of it.
+    const tops = await hint.evaluate((element, phrase) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      for (let text = walker.nextNode(); text !== null; text = walker.nextNode()) {
+        const start = text.data.indexOf(phrase);
+        if (start !== -1) {
+          const range = document.createRange();
+          range.setStart(text, start);
+          range.setEnd(text, start + phrase.length);
+          return Array.from(range.getClientRects(), (rect) => rect.top);
+        }
+      }
+      return null;
+    }, '−$500/+$500');
+    expect(tops, `${width}px`).not.toBeNull();
+    expect(tops.length, `${width}px`).toBeGreaterThan(0);
+    for (const top of tops) {
+      expect(Math.abs(top - tops[0]), `${width}px`).toBeLessThanOrEqual(1);
+    }
+  }
+});
+
 test('the page has every element the app fills in or listens to', async ({ page }) => {
   await page.goto('./');
   await showEverything(page);
