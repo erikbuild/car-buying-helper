@@ -81,6 +81,9 @@ Car Buying Helper is a single web page that Erik opens on his phone while sittin
   - When a payment-only quote is out of date, cards 3 and 4 ask for a new quote instead of their rate.
   - Card 1's first-payment clause says how to check it.
   - Each extra's price has a hint that it's the full price, not per month. An extra counts only once its price is entered. With a worked-out rate, the Extras tab's lines read "at least" (§6.4).
+- From the live check (2026-10-29):
+  - With a rate worked out from their payment, cards 3 and 4 choose between "On"/"At or under" and "Within" from the rate as the card shows it, rounded down to 2 decimals. Whether the card is green, amber or red still comes from the unrounded rate (§6.5).
+  - The Down payment hint keeps "−$500/+$500" on one line (§6.3).
 
 **Claude's calls (Erik can overrule any of these):**
 
@@ -161,7 +164,7 @@ A link, "Before you go: how to look up a fair price", opens `https://github.com/
 
 | Field | Meaning | Default |
 |---|---|---|
-| Down payment | Cash Erik puts down, with −$500 and +$500 buttons. −$500 stops at $0. Blank counts as $0. Hint: "Typing a down payment ties their quote to it. Use −$500/+$500 to try one out." | 0 |
+| Down payment | Cash Erik puts down, with −$500 and +$500 buttons. −$500 stops at $0. Blank counts as $0. Hint: "Typing a down payment ties their quote to it. Use −$500/+$500 to try one out." The hint keeps "−$500/+$500" on one line. | 0 |
 | *(calculated)* Amount financed | §7.2 | — |
 | Their rate (APR) | The dealer's quoted APR. Hint: "Leave blank if they only quote a payment." | blank |
 | Months | The loan length, a whole number from 1 to 96 | blank |
@@ -255,7 +258,7 @@ Cards are ordered red, amber, green, neutral. Within a severity they keep the or
 **2. CT rate cap.** Shows only when red: their rate or the contract APR is over 15%. Red: "Over Connecticut's 15% legal cap for new-car loans."
 
 **3. Special rate.** Shows when the special rate is entered and Taking the cash instead is off. Needs months and "covers loans up to". While Taking the cash instead is on and cash instead is blank, card 3 shows as a neutral note instead: "Enter the cash offered instead of the special rate."
-1. Their rate is known and at most the special + 0.125. Green: "On the automaker's S% special." When their rate is above the special, the headline is "Within 0.125 points of the S% special."
+1. Their rate is known and at most the special + 0.125. Green: "On the automaker's S% special." When their rate is above the special, the headline is "Within 0.125 points of the S% special." A rate worked out from their payment counts as above the special only when it shows above it, rounded down to 2 decimals (§7.0). For example, $967.37 × 36 on $34,825.14 works out to 0.000326%, which shows as 0%, so it reads "On the automaker's 0% special." Whether the card is green still comes from the unrounded rate.
 2. Months are over "covers loans up to", and cash instead is entered. Amber: "You're not getting the S% special or the $C cash." Sentence: "The special covers loans up to M months, so a N-month loan should come with the $C cash. Ask for it, or turn on Taking the cash instead if it's already in the deal."
 3. Months are over "covers loans up to". Neutral: "The S% special covers loans up to M months." Sentence: "A N-month loan is on the lender's standard rate."
 4. Their rate is unknown. Neutral: "Enter their rate to check it against the S% special." When their APR is blank and their payment is out of date (§6.3), the note is "Ask for a new quote at $6,000 down to check their rate against the S% special."
@@ -263,7 +266,7 @@ Cards are ordered red, amber, green, neutral. Within a severity they keep the or
 
 **4. Outside rate.** Shows unless the special rate applies (§7.6), or the special rate is entered and card 3 is still asking for months or "covers loans up to". Needs their rate, your outside rate and months. Its needs-input note adds the Experian context line: "Buyers with 781+ scores averaged 4.41% on new-car loans in Q2 2026 (Experian; includes automaker specials)." When their APR is blank and their payment is out of date (§6.3), the note asks for a new quote in place of their rate: "Ask for a new quote at $6,000 down to compare their loan with your own financing." Any other blank inputs come first: "Enter your outside rate and ask for a new quote at $6,000 down to compare their loan with your own financing."
 1. Their rate is more than the outside rate + 0.125. Amber: "D points over your outside rate." Sentence: "That costs $C over N months. Ask them to match O%, or use your own financing." It also shows the Experian context line. With a worked-out rate, the headline is "At least D points over your outside rate." and the sentence starts "That costs at least $C over N months."
-2. Otherwise, green: "At or under your O% outside rate." When their rate is above the outside rate, the headline is "Within 0.125 points of your O% outside rate."
+2. Otherwise, green: "At or under your O% outside rate." When their rate is above the outside rate, the headline is "Within 0.125 points of your O% outside rate." As in card 3, a rate worked out from their payment counts as above the outside rate only when it shows above it.
 
 **5. Special rate or cash.** Shows when the special rate, "covers loans up to", cash instead and your outside rate are all entered. Needs months. The math is in §7.9.
 1. The cash covers the rest of the loan (AF_B ≤ 0). Neutral: "The $C cash covers the rest of the loan." Sentence: "Take the cash."
@@ -368,6 +371,7 @@ A **Start over** button at the bottom asks for confirmation. It then clears the 
   - On the Price, Loan and Extras tabs, and in "Show the math", amounts are in cents.
   - Rates and point gaps show up to 2 decimals, with trailing zeros dropped: "5.9%", "0%", "7.44%", "0.4 points". "Show the math" shows rates to 3 decimals.
   - R, the rate worked out from their payment (§7.5), is rounded down, and so is any point gap or amount computed from it. Every other rate and gap is rounded half up, including the APRs worked out from the contract (§7.10) and O\* (§7.9).
+  - Cards 3 and 4 choose the wording of their green headline from R as it shows, so the headline matches the rate the card gives (§6.5). Which outcome a card gets still comes from the unrounded rate.
   - Entered rates are held as whole thousandths of a percent (5.9% is 5,900), so a gap between two entered rates is exact. For example, 6.135% − 5.5% is 0.635 points, which shows as 0.64.
 - Calculations always use unrounded values. Rounding is for display only.
 
@@ -844,6 +848,8 @@ package.json              development only (@playwright/test)
     - a payment-only quote that can't pay off the loan: Example 1 with their APR blank and $560.00/mo leaves their rate unknown, so card 1 is red "can't pay off", card 3 is amber "You're not getting the 0% special or the $1,000 cash." and card 4 asks for their rate. At 0% for 36 months, $966.37, exactly $1 under the 0% payment of $967.37, still works out to 0%, and $966.36 leaves their rate unknown
     - card 3: their rate at or under the special, on a loan longer than it covers, is green
     - cards 3 and 4 within the tolerance: their 0.125% against the 0% special at 36 months reads "Within 0.125 points of the 0% special."; their 5.625% against an outside 5.5% reads "Within 0.125 points of your 5.5% outside rate.", and 5.5% reads "At or under your 5.5% outside rate."
+    - cards 3 and 4 with a payment-only quote choose the green headline from the rate as it shows. At 0% for 36 months, $967.37, $967.38 and $967.50 work out to under 0.01%, so each reads "On the automaker's 0% special." $968.00, at least 0.04%, reads "Within 0.125 points of the 0% special." On Example 1 against the 5.5% outside rate, $666.73 works out to 5.5003%, which shows as 5.5%, so it reads "At or under your 5.5% outside rate." $666.89, at least 5.51%, reads "Within 0.125 points of your 5.5% outside rate."
+    - with a payment-only quote, the outcome still comes from the unrounded rate. At 0% for 36 months, $969.28 (0.12495%) is green, while $969.29 (0.12560%, which shows as at least 0.12%) is red. Against the 5.5% outside rate, $668.77 (5.62466%) is green, while $668.78 (5.62527%) is amber, "At least 0.12 points over your outside rate."
     - cards 3 and 4 with a payment-only quote out of date ask for a new quote at the down payment now entered
     - card 4: their 6.5% against an outside 5.5% reads "1 point over your outside rate."
     - card 5 near the lien-fee line: Example 1's deal with $38,820.14 down has AF₀ $1,005.00 and AF_B −$5.00, so card 5 says the cash covers the rest
@@ -858,7 +864,7 @@ package.json              development only (@playwright/test)
   - change the down payment with the ± buttons and see the totals update; −$500 stops at $0
   - the ± buttons mark the quote out of date, and pressing back or typing a down payment clears that; typing their payment before the down payment still gives a current quote
   - add, toggle and remove extras, and check each item's line, tip and price hint
-  - the Down payment hint, and the contract dates' hint once both dates are entered
+  - the Down payment hint, which keeps "−$500/+$500" on one line at every phone width from 320px to 440px, and the contract dates' hint once both dates are entered
   - enter Example 3 in the contract section and see the red amount-financed card
   - turn on Taking the cash instead (Example 5)
   - bad and out-of-range input shows an inline error and counts as blank
