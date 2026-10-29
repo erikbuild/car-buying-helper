@@ -24,6 +24,11 @@ function zeroPercentFor36(theirPaymentCents) {
   return { theirAprMilli: 0, months: 36, theirPaymentCents };
 }
 
+// Example 1's deal for 36 months, quoted as their payment only: their APR is blank.
+function paymentOnlyFor36(theirPaymentCents) {
+  return { theirAprMilli: null, months: 36, theirPaymentCents };
+}
+
 // The extended warranty from §7.11's Extras table, in the deal.
 const WARRANTY_IN_DEAL = extra('extra-1', 'warranty', 299500, { inDeal: true });
 
@@ -346,6 +351,30 @@ test('card 3: a rate above the special but within 0.125 points of it says so (§
   assert.deepEqual(verdictAt(126), ['red', "Should be the automaker's 0% special."]);
 });
 
+test('card 3: a payment-only quote reads On while its rate shows as the special, and Within once it shows above it (§13)', () => {
+  // $967.37, $967.38 and $967.50 work out to under 0.01%, which shows as 0%, and $968.00 to 0.041%.
+  for (const theirPaymentCents of [96737, 96738, 96750]) {
+    const card = cardFor('specialRate', paymentOnlyFor36(theirPaymentCents));
+    assert.deepEqual(verdictOf(card), ['green', "On the automaker's 0% special."], `${theirPaymentCents} cents`);
+    assert.equal(card.sentence, 'Their rate is 0%.', `${theirPaymentCents} cents`);
+  }
+  const within = cardFor('specialRate', paymentOnlyFor36(96800));
+  assert.deepEqual(verdictOf(within), ['green', 'Within 0.125 points of the 0% special.']);
+  assert.equal(within.sentence, 'Their rate is at least 0.04%.');
+});
+
+test('card 3: with a payment-only quote, green or red still comes from the unrounded rate (§13)', () => {
+  // $969.28 works out to 0.12495%, within 0.125 points of the special, and $969.29 to 0.12560%. Both show as at
+  // least 0.12%.
+  const green = cardFor('specialRate', paymentOnlyFor36(96928));
+  assert.deepEqual(verdictOf(green), ['green', 'Within 0.125 points of the 0% special.']);
+  assert.equal(green.sentence, 'Their rate is at least 0.12%.');
+  const red = cardFor('specialRate', paymentOnlyFor36(96929));
+  assert.deepEqual(verdictOf(red), ['red', "Should be the automaker's 0% special."]);
+  const cost = 'Their rate of at least 0.12% costs you at least $67 more over 36 months.';
+  assert.ok(red.sentence.startsWith(cost), red.sentence);
+});
+
 test('card 3: a rate above the special on a loan it covers is red, with what it costs and the cash', () => {
   const card = cardFor('specialRate', { months: 36 });
   assert.deepEqual(verdictOf(card), ['red', "Should be the automaker's 0% special."]);
@@ -433,6 +462,36 @@ test('card 4: up to 0.125 points over your outside rate is green, and a rate ove
   assert.deepEqual(verdictOf(within), ['green', 'Within 0.125 points of your 5.5% outside rate.']);
   assert.equal(within.context, null);
   assert.equal(cardFor('outsideRate', { theirAprMilli: 5626 }).severity, 'amber');
+});
+
+test('card 4: a payment-only quote reads At or under while its rate shows as your outside rate (§13)', () => {
+  // On Example 1, $666.72 works out to 5.4997%, $666.73 to 5.5003%, $666.88 to 5.5095% and $666.89 to 5.5101%.
+  const cardAt = (theirPaymentCents) => cardFor('outsideRate', { theirAprMilli: null, theirPaymentCents });
+  const atOrUnder = ['green', 'At or under your 5.5% outside rate.'];
+  const under = cardAt(66672);
+  assert.deepEqual(verdictOf(under), atOrUnder);
+  assert.equal(under.sentence, 'Their rate is at least 5.49%.');
+  for (const theirPaymentCents of [66673, 66688]) {
+    const card = cardAt(theirPaymentCents);
+    assert.deepEqual(verdictOf(card), atOrUnder, `${theirPaymentCents} cents`);
+    assert.equal(card.sentence, 'Their rate is at least 5.5%.', `${theirPaymentCents} cents`);
+  }
+  const within = cardAt(66689);
+  assert.deepEqual(verdictOf(within), ['green', 'Within 0.125 points of your 5.5% outside rate.']);
+  assert.equal(within.sentence, 'Their rate is at least 5.51%.');
+  // $967.37 × 36 works out to 0.000326%, which shows as 0%. The special is blank, since card 4 is left off while the
+  // special applies.
+  const zeroOutside = { ...paymentOnlyFor36(96737), specialAprMilli: null, outsideAprMilli: 0 };
+  assert.deepEqual(verdictOf(cardFor('outsideRate', zeroOutside)), ['green', 'At or under your 0% outside rate.']);
+});
+
+test('card 4: with a payment-only quote, green or amber still comes from the unrounded rate (§13)', () => {
+  // On Example 1, $668.77 works out to 5.62466%, within 0.125 points of 5.5%, and $668.78 to 5.62527%. Both show as
+  // at least 5.62%.
+  const verdictAt = (theirPaymentCents) =>
+    verdictOf(cardFor('outsideRate', { theirAprMilli: null, theirPaymentCents }));
+  assert.deepEqual(verdictAt(66877), ['green', 'Within 0.125 points of your 5.5% outside rate.']);
+  assert.deepEqual(verdictAt(66878), ['amber', 'At least 0.12 points over your outside rate.']);
 });
 
 test("cards 3 and 4 give Reg Z's 0.125-point tolerance in full in their math", () => {

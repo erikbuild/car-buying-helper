@@ -161,6 +161,12 @@ export function formatRatePercent(percent, rounding = 'halfUp', decimals = 2) {
   return `${writeDecimal(roundToSteps(percent, rounding, decimals), decimals)}%`;
 }
 
+// Rounds a computed rate in percent as formatRatePercent writes it, and gives it in thousandths of a percent, as
+// entered rates are held: (7.440472, 'down') → 7440, which formatRatePercent writes as "7.44%".
+export function roundedRateMilli(percent, rounding = 'halfUp', decimals = 2) {
+  return roundToSteps(percent, rounding, decimals) * 10 ** (3 - decimals);
+}
+
 // Writes a gap that shows as "1" as "1 point", and any other gap as "0.4 points".
 function writePoints(number) {
   return number === '1' ? '1 point' : `${number} points`;

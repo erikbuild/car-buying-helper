@@ -28,6 +28,7 @@ import {
   formatRateMilli,
   formatRatePercent,
   formatTensDown,
+  roundedRateMilli,
 } from './numbers.js';
 import { priceOf, pricedExtrasInDeal } from './price.js';
 
@@ -172,6 +173,17 @@ function ratesFromPayment(deal) {
 // thousandths ÷ 1000, compares exactly; a rate worked out from their payment counts as 100% when it's over 100%.
 function theirRateIsAbove(deal, limitMilli) {
   return deal.theirRate.percent > limitMilli / MILLI_PER_PERCENT;
+}
+
+// Whether their rate counts as more than limitMilli thousandths of a percent when cards 3 and 4 choose their green
+// headline (SPEC §6.5, §7.0). Their APR is the rate they quoted, so it compares exactly, as in theirRateIsAbove. A rate
+// worked out from their payment compares as the cards show it, rounded down to 2 decimals, so the headline matches the
+// rate the card gives: one that works out to 0.000326% shows as 0%, and isn't above 0%.
+function theirRateShowsAbove(deal, limitMilli) {
+  if (deal.theirRate.entered) {
+    return theirRateIsAbove(deal, limitMilli);
+  }
+  return roundedRateMilli(deal.theirRate.percent, 'down') > limitMilli;
 }
 
 // Whether their rate is unknown because their payment-only quote is out of date (SPEC §6.3): their APR is blank, and
@@ -442,9 +454,10 @@ function specialRateCard(deal, reference) {
 }
 
 // Card 3's outcome: their rate against the special rate, which counts as met within Reg Z's APR tolerance. A rate above
-// the special but within the tolerance says so. On a loan longer than the special covers, it asks for the cash instead.
-// While a payment-only quote is out of date, it asks for a quote at the down payment now entered in place of their
-// rate. Needs the months and the longest term it covers.
+// the special but within the tolerance says so in the headline, where a rate worked out from their payment counts as
+// above the special only when it shows above it. On a loan longer than the special covers, it asks for the cash
+// instead. While a payment-only quote is out of date, it asks for a quote at the down payment now entered in place of
+// their rate. Needs the months and the longest term it covers.
 function specialRateOutcome(deal, reference) {
   const { specialAprMilli, specialCoversMonths, months, cashInsteadCents } = deal.inputs;
   const special = formatRateMilli(specialAprMilli);
@@ -466,7 +479,7 @@ function specialRateOutcome(deal, reference) {
   if (deal.theirRate !== null && !theirRateIsAbove(deal, specialAprMilli + toleranceMilli)) {
     return {
       severity: 'green',
-      headline: theirRateIsAbove(deal, specialAprMilli)
+      headline: theirRateShowsAbove(deal, specialAprMilli)
         ? `Within ${aprTolerancePointsText(reference)} of the ${special} special.`
         : `On the automaker's ${special} special.`,
       sentence: `Their rate is ${theirRateText(deal)}.`,
@@ -536,9 +549,10 @@ function outsideRateCard(deal, reference) {
 }
 
 // Card 4's outcome: their rate against your outside rate, with Reg Z's APR tolerance allowed. A rate above your outside
-// rate but within the tolerance says so. Needs their rate, your outside rate and the months. While a payment-only quote
-// is out of date, the note asks for a quote at the down payment now entered in place of their rate, after the other
-// blank inputs. The note, and the amber outcome, add the Experian line.
+// rate but within the tolerance says so in the headline, where a rate worked out from their payment counts as above
+// your outside rate only when it shows above it. Needs their rate, your outside rate and the months. While a
+// payment-only quote is out of date, the note asks for a quote at the down payment now entered in place of their rate,
+// after the other blank inputs. The note, and the amber outcome, add the Experian line.
 function outsideRateOutcome(deal, reference) {
   const { theirAprMilli, outsideAprMilli, months } = deal.inputs;
   const outsideLine = `Your outside rate: ${outsideAprMilli === null ? 'blank' : formatRateMilli(outsideAprMilli, 3)}`;
@@ -569,7 +583,7 @@ function outsideRateOutcome(deal, reference) {
   if (!theirRateIsAbove(deal, outsideAprMilli + toleranceMilli)) {
     return {
       severity: 'green',
-      headline: theirRateIsAbove(deal, outsideAprMilli)
+      headline: theirRateShowsAbove(deal, outsideAprMilli)
         ? `Within ${aprTolerancePointsText(reference)} of your ${outside} outside rate.`
         : `At or under your ${outside} outside rate.`,
       sentence: `Their rate is ${theirRateText(deal)}.`,

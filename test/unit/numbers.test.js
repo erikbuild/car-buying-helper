@@ -18,6 +18,7 @@ import {
   parseAmount,
   parseRate,
   parseWholeNumber,
+  roundedRateMilli,
 } from '../../site/lib/numbers.js';
 
 const MONTH_LIMITS = { min: 1, max: 96 };
@@ -145,6 +146,17 @@ test('formatRatePercent rounds a computed rate half up, or down when asked', () 
   assert.equal(formatRatePercent(0.000326, 'down'), '0%');
   assert.equal(formatRatePercent(7.4472), '7.45%');
   assert.equal(formatRatePercent(4.02, 'halfUp', 1), '4%');
+});
+
+test('roundedRateMilli rounds a computed rate as formatRatePercent writes it, in thousandths of a percent', () => {
+  // Rounded down, formatRatePercent writes these as 7.44%, 0%, 5.5% and 5.51%.
+  assert.equal(roundedRateMilli(7.440472, 'down'), 7440);
+  assert.equal(roundedRateMilli(0.000326, 'down'), 0);
+  assert.equal(roundedRateMilli(5.509453, 'down'), 5500);
+  assert.equal(roundedRateMilli(5.510063, 'down'), 5510);
+  // Rounded half up, it writes these as 7.45% and 5.800%.
+  assert.equal(roundedRateMilli(7.4472), 7450);
+  assert.equal(roundedRateMilli(5.799797, 'halfUp', 3), 5800);
 });
 
 test('point formats say "1 point" for a gap that shows as 1, and "points" otherwise', () => {
